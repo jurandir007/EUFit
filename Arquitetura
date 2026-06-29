@@ -1,0 +1,91 @@
+XXXXXXXXX - Main Archtecture - XXXXXXXXXXXXXXXXX
+project/
+├── app/
+│   ├── __init__.py           # Application factory (create_app)
+│   ├── main.py               # Ponto de entrada da aplicação
+│   ├── database/             # Definição do ORM
+│   │   └── models.py         # Classe Eu2016
+│   ├── modules/              # Domínios da Aplicação
+│   │   ├── core/             # Infraestrutura
+│   │   │   ├── config.py     # Variáveis de ambiente
+│   │   │   └── database.py   # SQLAlchemy Instance
+│   │   └── dashboard/        # Rotas (view, add, edit, inspect, delete)
+│   │       └── routes.py
+│   ├── services/             # Regras de negócio
+│   │   └── history_service.py
+│   └── templates/            # Frontend HTML
+│       ├── dashboard.html
+│       ├── edit.html
+│       ├── inspect.html      # Nova página de inspeção
+│       └── success.html
+├── backups/                  # Armazena arquivos CSV
+├── .gitignore                # Arquivos ignorados pelo Git
+├── neon.env                  # Variáveis de ambiente sensíveis
+├── Arquitetura.txt           # Documentação
+├── backup_db.py              # Script de automação e limpeza
+├── data_correct_10.py        # Script de correção
+└── test_dados.py             # Script de teste
+
+XXXXXXXX - Mermaid code- XXXXXXXX:
+classDiagram
+    direction TB
+
+    %% Componentes Principais
+    class project {
+        +app/
+        +backups/
+        +templates/
+        +backup_db.py
+    }
+
+    class main {
+        +run()
+    }
+
+    class app_init {
+        +create_app()
+    }
+
+    class database_models {
+        +Eu2016 model
+    }
+
+    class modules_core {
+        +config.py
+        +database.py (db instance)
+    }
+
+    class dashboard_routes {
+        +view_dashboard()
+        +get_history()
+        +add_measurement()
+        +edit_measurement()
+        +inspect_history()
+        +delete_measurement()
+    }
+
+    class services {
+        +history_service.py
+    }
+
+    class templates {
+        +dashboard.html
+        +edit.html
+        +inspect.html
+        +success.html
+    }
+
+    %% Relacionamentos
+    project --> app_init : inicializa
+    app_init --> modules_core : configura db
+    app_init --> dashboard_routes : registra blueprint
+
+    dashboard_routes --> services : chama lógica
+    dashboard_routes --> templates : renderiza
+    dashboard_routes --> database_models : faz CRUD (ORM)
+
+    services --> database_models : consulta
+    database_models --> modules_core : usa db instance
+
+    %% Backup Integration
+    dashboard_routes ..> backup_db : aciona backup

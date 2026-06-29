@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h1>Edit Measurement</h1>
+    <form method="POST">
+        <label>Weight:</label>
+        <input type="number" name="weight" value="{{ record.peso }}" step="0.1" required><br>
+
+        <label>Fat:</label>
+        <input type="number" name="fat" value="{{ record.gordura }}" step="0.1" required><br>
+
+        <label>Visceral:</label>
+        <input type="number" name="viceral" value="{{ record.viceral }}" step="0.1" required><br>
+
+        <label>Muscle:</label>
+        <input type="number" name="muscle" value="{{ record.musculo }}" step="0.1"><br>
+
+        <label>Age:</label>
+        <input type="number" name="age" value="{{ record.idade }}"><br>
+
+        <label>Basal:</label>
+        <input type="number" name="basal" value="{{ record.basal }}" step="0.1"><br>
+
+        <button type="submit">Save Changes</button>
+    </form>
+    <br>
+    <a href="/api/dashboard/view">Back to Dashboard</a>
+</body>
+</html>

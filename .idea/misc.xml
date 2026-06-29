@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="uv (EUFit)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="uv (EUFit)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="SSH (sftp://jurandir_fisico@34.26.125.213:22/home/jurandir_fisico/.virtualenvs/EUFit/bin/python)" project-jdk-type="Python SDK" />
 </project>

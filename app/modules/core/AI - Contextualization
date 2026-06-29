@@ -1,0 +1,22 @@
+To facilitate the resumption of this project in a new conversation, here is a summary of what has been implemented in the app/modules/core/config.py file:
+
+Objective
+Centralize and protect environment variables, ensuring that sensitive credentials (such as the Neon.tech connection string) are not exposed in the code.
+
+Technical Implementation
+Use of the python-dotenv library to load variables from a .env file (local development) or from the operating system (production on GCE).
+
+Creation of the Config class that encapsulates access to DATABASE_URL_Neon and SECRET_KEY.
+
+Implementation of a critical check (if not DATABASE_URL) that halts execution with a ValueError if the connection variable is not configured, preventing silent failures in the application.
+
+Execution Configuration
+In environments such as PyCharm, the DATABASE_URL_Neon variable must be injected through Run Configurations (Environment variables field), ensuring that the config.py file is successfully loaded when imported by the other modules of the application.
+
+Tokens consumidos: 201
+
+Resumo de Orientação:
+
+Projeto: Aplicação web com CRUD e dashboard.
+
+Status: Configuração finalizada no config.py. Centralização de variáveis de ambiente concluída com validação de segurança e integração funcional no PyCharm.

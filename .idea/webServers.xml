@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="bfa03c9d-7843-4e23-bea1-0e653b240000" name="hello world!!!">
+        <fileTransfer rootFolder="/home/jurandir/" accessType="SFTP" host="34.26.125.213" port="22" sshConfigId="357e8a1b-3b74-43f3-aa19-36bb917c90e4" sshConfig="jurandir_fisico@34.26.125.213:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>EUFit Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .inspect-btn {
+            display: inline-block;
+            background-color: #008CBA;
+            color: white;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dashboard - History</h1>
+
+    <section style="width: 80%; margin: auto;">
+        <h3>Add New Measurement</h3>
+        <form action="/api/dashboard/add" method="POST">
+            <!-- Mandatory fields -->
+            <input type="number" step="0.01" name="weight" placeholder="Weight" required>
+            <input type="number" step="0.01" name="fat" placeholder="Fat %" required>
+            <input type="number" step="0.01" name="visceral" placeholder="Visceral" required>
+
+            <!-- Optional fields -->
+            <input type="number" step="0.01" name="muscle" placeholder="Muscle">
+            <input type="number" step="0.01" name="age" placeholder="Age">
+            <input type="number" step="0.01" name="basal" placeholder="Basal Metabolic Rate">
+
+            <button type="submit">Save Measurement</button>
+        </form>
+
+        <!-- Redirect button to the inspection page -->
+        <a href="/api/dashboard/inspect" class="inspect-btn">Inspecionar Valores</a>
+    </section>
+
+    <div style="width: 80%; margin: auto; margin-top: 30px;">
+        <canvas id="myChart"></canvas>
+    </div>
+
+    <script>
+        // Fetch data and draw chart
+        fetch('/api/dashboard/history')
+            .then(response => response.json())
+            .then(data => {
+                const ctx = document.getElementById('myChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.map(item => item.date),
+                        datasets: [{
+                            label: 'Weight History',
+                            data: data.map(item => item.weight),
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1
+                        }]
+                    }
+                });
+            });
+    </script>
+</body>
+</html>
