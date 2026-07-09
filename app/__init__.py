@@ -6,7 +6,7 @@ from app.modules.core.config import settings
 def create_app():
     app = Flask(__name__)
     app.config.from_object(settings)
-
+    app = Flask(__name__, template_folder='docs')
     init_db(app)
 
     @app.route('/')

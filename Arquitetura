@@ -13,7 +13,7 @@ project/
 │   │       └── routes.py
 │   ├── services/             # Regras de negócio
 │   │   └── history_service.py
-│   └── templates/            # Frontend HTML
+│   └── docs/            # Frontend HTML
 │       ├── dashboard.html
 │       ├── edit.html
 │       ├── inspect.html      # Nova página de inspeção
