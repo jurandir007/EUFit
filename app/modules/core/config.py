@@ -23,4 +23,10 @@ class Config:
 
     SECRET_KEY = os.getenv("SECRET_KEY", "uma-chave-secreta-muito-segura")
 
+    # --- NOVA CONFIGURAÇÃO: VACINA CONTRA QUEDAS DE LIGAÇÃO (SSL / TIMEOUT) ---
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,  # Testa a ligação antes de fazer a query
+        "pool_recycle": 300,    # Recicla a ligação a cada 5 minutos para evitar timeouts da nuvem
+    }
+
 settings = Config()
