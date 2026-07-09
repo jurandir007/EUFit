@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ site_name }}</title>
+    <style>
+        /* Reutilizando o estilo global do seu layout */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 15px; background-color: #f1f5f9; color: #333; margin: 0; display: flex; flex-direction: column; justify-content: center; height: 100vh; }
+
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: center; }
+        h1 { margin: 0 0 10px 0; font-size: 24px; color: #0077b6; }
+        p { margin-bottom: 20px; font-size: 16px; color: #64748b; }
+
+        .btn-access { display: block; width: 100%; padding: 15px; background-color: #28a745; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>{{ site_name }}</h1>
+        <p>Bem-vindo ao seu sistema de gestão de saúde.</p>
+        <a href="/api/dashboard/view" class="btn-access">Acessar Dashboard</a>
+    </div>
+
+</body>
+</html>
