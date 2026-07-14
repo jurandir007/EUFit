@@ -89,3 +89,25 @@ classDiagram
 
     %% Backup Integration
     dashboard_routes ..> backup_db : aciona backup
+
+    EUFit2/
+├── app/
+│   ├── docs/
+│   │   ├── dashboard.html
+│   │   ├── edit.html
+│   │   ├── index.html
+│   │   ├── inspect.html
+│   │   └── success.html
+│   ├── services/
+│   │   └── history_service.py
+│   ├── __init__.py
+│   ├── data_correct_10.py
+│   ├── main.py
+│   └── test_dados.py
+├── backups/
+│   ├── backup_eufit_20260629_2238.csv
+│   ├── backup_eufit_20260629_2239.csv
+│   └── backup_eufit_20260629_2248.csv
+├── Arquitetura
+├── backup_db.py
+└── neon.env

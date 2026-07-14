@@ -1,42 +1,102 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Measurement</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; background-color: #f4f4f9; }
-        h1 { text-align: center; color: #333; }
-        form { display: flex; flex-direction: column; max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        label { margin-top: 15px; font-weight: 600; color: #555; }
-        input { padding: 15px; font-size: 16px; border: 1px solid #ddd; border-radius: 6px; margin-top: 8px; width: 100%; box-sizing: border-box; }
-        button { margin-top: 25px; padding: 15px; background-color: #28a745; color: white; border: none; border-radius: 6px; font-size: 18px; cursor: pointer; transition: background 0.3s; }
-        button:active { background-color: #218838; }
-        a { display: block; text-align: center; margin-top: 20px; color: #007bff; text-decoration: none; font-weight: bold; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            max-width: 400px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        label {
+            margin-top: 15px;
+            font-weight: 600;
+            color: #555;
+        }
+        input {
+            padding: 15px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-top: 8px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        /* Style to indicate the primary key field cannot be modified */
+        input[readonly] {
+            background-color: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+        button {
+            margin-top: 25px;
+            padding: 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:active {
+            background-color: #218838;
+        }
+        a {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #6c757d;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
     <h1>Edit Measurement</h1>
+
     <form method="POST">
-        <label>Weight:</label>
-        <input type="number" name="weight" value="{{ record.peso }}" step="0.1" required>
+        <label for="carimbo">Timestamp (Read-only)</label>
+        <input type="text" id="carimbo" name="carimbo" value="{{ record.carimbo }}" readonly>
 
-        <label>Fat:</label>
-        <input type="number" name="fat" value="{{ record.gordura }}" step="0.1" required>
+        <label for="peso">Weight (kg)</label>
+        <input type="number" step="0.01" id="peso" name="peso" value="{{ record.peso }}" required>
 
-        <label>Visceral:</label>
-        <input type="number" name="viceral" value="{{ record.viceral }}" step="0.1" required>
+        <label for="gordura">Body Fat (%)</label>
+        <input type="number" step="0.01" id="gordura" name="gordura" value="{{ record.gordura }}">
 
-        <label>Muscle:</label>
-        <input type="number" name="muscle" value="{{ record.musculo }}" step="0.1">
+        <label for="musculo">Muscle Mass (%)</label>
+        <input type="number" step="0.01" id="musculo" name="musculo" value="{{ record.musculo }}">
 
-        <label>Age:</label>
-        <input type="number" name="age" value="{{ record.idade }}">
+        <label for="basal">Basal Metabolic Rate</label>
+        <input type="number" step="0.01" id="basal" name="basal" value="{{ record.basal }}">
 
-        <label>Basal:</label>
-        <input type="number" name="basal" value="{{ record.basal }}" step="0.1">
+        <label for="idade">Metabolic Age</label>
+        <input type="number" step="0.01" id="idade" name="idade" value="{{ record.idade }}">
+
+        <label for="viceral">Visceral Fat</label>
+        <input type="number" step="0.01" id="viceral" name="viceral" value="{{ record.viceral }}">
 
         <button type="submit">Save Changes</button>
+        <a href="/">Cancel</a>
     </form>
-    <a href="/api/dashboard/view">Back to Dashboard</a>
 </body>
 </html>
