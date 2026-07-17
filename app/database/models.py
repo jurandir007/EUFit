@@ -15,3 +15,11 @@ class Eu2016(db.Model):
 
     def __repr__(self):
         return f"<Registro {self.carimbo}>"
+
+
+class User(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    google_id = db.Column(db.String(100), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)

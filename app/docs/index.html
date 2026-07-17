@@ -1,31 +1,52 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{{ site_name }}</title>
-    <style>
-        /* Reutilizando o estilo global do seu layout */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 15px; background-color: #f1f5f9; color: #333; margin: 0; display: flex; flex-direction: column; justify-content: center; height: 100vh; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>{{ site_name }}</title>
+<style>
+    /* Estilos consolidados */
+    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; padding: 15px; background-color: #f1f5f9; color: #334155; margin: 0; display: flex; flex-direction: column; justify-content: center; min-height: 100vh; }
+    .card { max-width: 650px; margin: 2rem auto; padding: 2.5rem; background-color: #ffffff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); text-align: center; }
+    h1 { color: #0f172a; font-size: 2rem; margin-top: 0; margin-bottom: 1rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }
+    .intro-text { font-size: 1.1rem; color: #475569; margin-bottom: 1.5rem; }
+    .features-box { background-color: #f8fafc; padding: 1.25rem; border-radius: 8px; border-left: 4px solid #3b82f6; margin-bottom: 1.5rem; text-align: left; }
+    .features-box p { margin: 0.5rem 0; font-size: 0.95rem; }
+    .conclusion-text { margin-bottom: 2rem; }
 
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: center; }
-        h1 { margin: 0 0 10px 0; font-size: 24px; color: #0077b6; }
-        p { margin-bottom: 20px; font-size: 16px; color: #64748b; }
-
-        .btn-access { display: block; width: 100%; padding: 15px; background-color: #28a745; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-sizing: border-box; }
-    </style>
+    /* Estilos dos botões */
+    .btn-container { display: flex; flex-direction: column; gap: 10px; }
+    .btn { display: block; text-decoration: none; padding: 0.8rem 1.5rem; border-radius: 6px; font-weight: 600; font-size: 1rem; transition: background-color 0.3s ease; }
+    .btn-login { background-color: #64748b; color: #ffffff; }
+    .btn-login:hover { background-color: #475569; }
+    .btn-dashboard { background-color: #3b82f6; color: #ffffff; }
+    .btn-dashboard:hover { background-color: #2563eb; }
+</style>
 </head>
 <body>
 
-    <div class="card">
-        <h1>{{ site_name }}</h1>
-        <p>I, Jurandir, developed this CRUD system with the goal of automating my weight loss process, facilitating the daily tracking of my weight. The project was structured in a modular and scalable way, using Python and Flask, which allows for efficient and organized management of my health data.
+<div class="card">
+    <h1>{{ site_name }}</h1>
 
-To ensure the robustness and security of the application, I implemented SQLAlchemy 2.0 as an ORM, integrating a PostgreSQL database hosted on Neon.tech. The architecture follows professional standards, with isolation of environment variables and secure credential management, preventing failures and ensuring data integrity..
+    <p class="intro-text">
+        Welcome! I developed this CRUD system to automate my weight loss journey, making daily tracking both easy and efficient.
+    </p>
 
-The deployment was carried out on Google Compute Engine using Gunicorn, ensuring stability in execution. More than just a simple log, this tool transforms numbers into strategic insight, allowing for trend analysis and maintaining the discipline necessary to achieve my goals. It is a solution that unites software development and self-care, providing precise and continuous control of my physical evolution.</p>
-        <a href="/api/dashboard/view" class="btn-access">Acessar Dashboard</a>
+    <div class="features-box">
+        <p><strong>🛠️ Tech Stack:</strong> Modular architecture using Python, Flask, and SQLAlchemy 2.0.</p>
+        <p><strong>🔒 Security & Database:</strong> Robust PostgreSQL database hosted on Neon.tech with strict environment variable isolation.</p>
+        <p><strong>☁️ Deployment:</strong> High stability execution on Google Compute Engine using Gunicorn.</p>
     </div>
+
+    <p class="conclusion-text">
+        More than just a simple log, this tool transforms numbers into strategic insights. It perfectly unites software development and self-care, providing precise control of my physical evolution.
+    </p>
+
+    <div class="btn-container">
+        <a href="/auth/login" class="btn btn-login">Login com Google</a>
+        <a href="/api/dashboard/view" class="btn btn-dashboard">Entrar sem login</a>
+    </div>
+</div>
 
 </body>
 </html>

@@ -2,27 +2,31 @@ XXXXXXXXX - Main Archtecture - XXXXXXXXXXXXXXXXX
 project/
 ├── app/
 │   ├── __init__.py           # Application factory (create_app)
-│   ├── main.py               # Ponto de entrada da aplicação
-│   ├── database/             # Definição do ORM
+│   ├── main.py               # Ponto de entrada
+│   ├── database/             # Modelos (ORM)
 │   │   └── models.py         # Classe Eu2016
-│   ├── modules/              # Domínios da Aplicação
+│   ├── modules/              # Domínios
+│   │   ├── auth/             # Módulo de Autenticação
+│   │   │   └── handlers.py   # Login, OAuth Callback
 │   │   ├── core/             # Infraestrutura
-│   │   │   ├── config.py     # Variáveis de ambiente
-│   │   │   └── database.py   # SQLAlchemy Instance
-│   │   └── dashboard/        # Rotas (view, add, edit, inspect, delete)
+│   │   │   ├── config.py
+│   │   │   ├── database.py   # Instância do SQLAlchemy
+│   │   │   └── oauth.py      # Configuração OAuth (init_oauth)
+│   │   └── dashboard/        # Gestão de dados
 │   │       └── routes.py
 │   ├── services/             # Regras de negócio
 │   │   └── history_service.py
-│   └── docs/            # Frontend HTML
+│   └── docs/                 # Frontend HTML
 │       ├── dashboard.html
 │       ├── edit.html
-│       ├── inspect.html      # Nova página de inspeção
+│       ├── index.html        # Página de entrada com botão Login
+│       ├── inspect.html
 │       └── success.html
-├── backups/                  # Armazena arquivos CSV
-├── .gitignore                # Arquivos ignorados pelo Git
-├── neon.env                  # Variáveis de ambiente sensíveis
-├── Arquitetura.txt           # Documentação
-├── backup_db.py              # Script de automação e limpeza
+├── backups/                  # Arquivos CSV
+├── .gitignore
+├── neon.env                  # Variáveis de ambiente
+├── Arquitetura.txt
+├── backup_db.py              # Automação de limpeza
 ├── data_correct_10.py        # Script de correção
 └── test_dados.py             # Script de teste
 
