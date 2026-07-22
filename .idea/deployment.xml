@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="jurandir_fisico@34.26.125.213:22 agent" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" serverName="jurandir_fisico@34.26.125.213:22 agent" createEmptyFolders="true" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
       <paths name="hello world!!!">
         <serverdata>
@@ -12,11 +12,10 @@
       <paths name="jurandir_fisico@34.26.125.213:22 agent">
         <serverdata>
           <mappings>
-            <mapping deploy="/tmp/pycharm_project_c6d08b88" local="$PROJECT_DIR$" />
+            <mapping deploy="/home/jurandir_fisico/EUFit" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>
     </serverData>
-    <option name="myAutoUpload" value="ALWAYS" />
   </component>
 </project>
