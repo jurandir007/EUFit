@@ -5,6 +5,7 @@ oauth = OAuth()
 
 def init_oauth(app):
     oauth.init_app(app)
+    print(f"DEBUG CLIENT ID: {app.config.get('GOOGLE_CLIENT_ID')}")
     oauth.register(
         name='google',
         client_id=app.config.get('GOOGLE_CLIENT_ID'),
