@@ -13,7 +13,7 @@ def login():
     return google.authorize_redirect(redirect_uri)
 
 
-@auth_bp.route('/auth/callback')
+@auth_bp.route('/callback')
 def authorize():
     google = oauth.create_client('google')
     # Ajustamos para manter a consistência com o que o Google espera
