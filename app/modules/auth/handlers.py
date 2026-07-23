@@ -47,3 +47,4 @@ def logout():
     session.pop('user', None)
     # Redireciona para a página inicial
     return redirect('/')
+
