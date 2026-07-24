@@ -38,12 +38,6 @@
             width: 100%;
             box-sizing: border-box;
         }
-        /* Style to indicate the primary key field cannot be modified */
-        input[readonly] {
-            background-color: #e9ecef;
-            color: #6c757d;
-            cursor: not-allowed;
-        }
         button {
             margin-top: 25px;
             padding: 15px;
@@ -74,8 +68,9 @@
     <h1>Edit Measurement</h1>
 
     <form method="POST">
-        <label for="carimbo">Timestamp (Read-only)</label>
-        <input type="text" id="carimbo" name="carimbo" value="{{ record.carimbo }}" readonly>
+        <!-- Timestamp field unlocked and formatted for editing -->
+        <label for="carimbo">Timestamp</label>
+        <input type="datetime-local" id="carimbo" name="carimbo" value="{{ record.carimbo.strftime('%Y-%m-%dT%H:%M') if record.carimbo else '' }}" required>
 
         <label for="peso">Weight (kg)</label>
         <input type="number" step="0.01" id="peso" name="peso" value="{{ record.peso }}" required>

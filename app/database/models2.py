@@ -1,13 +1,11 @@
-#app/database/models.py
 from app.modules.core.database import db
 
 
 class Eu2016(db.Model):
     __tablename__ = 'Eu_2016'
 
-    # The first argument of Column is the exact name in the database
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    carimbo = db.Column('Carimbo de data/hora', db.DateTime)
+    # O primeiro argumento da Column é o nome exato no banco (o 'key')
+    carimbo = db.Column('Carimbo de data/hora', db.DateTime, primary_key=True)
     peso = db.Column('Peso', db.Float)
     gordura = db.Column('Gordura', db.Float)
     musculo = db.Column('Musculo', db.Float)
@@ -16,7 +14,7 @@ class Eu2016(db.Model):
     viceral = db.Column('viceral', db.Float)
 
     def __repr__(self):
-        return f"<Record {self.id} - {self.carimbo}>"
+        return f"<Registro {self.carimbo}>"
 
 
 class User(db.Model):

@@ -6,23 +6,36 @@
     <title>EUFit Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 10px; background-color: #f1f5f9; color: #333; margin: 0; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 10px; background-color: #f1f5f9; color: #333; margin: 0; display: flex; flex-direction: column; height: 100vh; }
 
         /* User profile container: aligns name and logout button at the top right */
         .user-profile { position: absolute; top: 10px; right: 15px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #0f172a; background: #e2e8f0; padding: 5px 12px; border-radius: 20px; }
-        /* Logout and login buttons */
+        /* Logout button: small, red text for visual differentiation */
         .btn-logout { color: #dc2626; text-decoration: none; font-size: 12px; cursor: pointer; }
-        .btn-login { color: #0f172a; text-decoration: none; font-size: 12px; cursor: pointer; }
 
-        /* Form section */
+
+        /* User profile label fixed at the top right */
+        .user-profile {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #0f172a;
+            background: #e2e8f0;
+            padding: 5px 10px;
+            border-radius: 20px;
+        }
+
+
+        /* Formulário no Topo (Ocupa cerca de 40%) */
         section { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 10px; }
         h3 { margin: 0 0 10px 0; font-size: 16px; color: #0077b6; }
         form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box; }
-        .full-width { grid-column: span 2; }
         button { grid-column: span 2; padding: 10px; background-color: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
 
-        /* Chart container */
+        /* Gráfico na Parte Inferior (Ocupa o restante) */
         .chart-container { background: white; padding: 10px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex-grow: 1; min-height: 200px; }
         canvas { width: 100% !important; height: 100% !important; }
 
@@ -30,22 +43,25 @@
     </style>
 </head>
 <body>
-    <!-- User profile display: shows current user name and provides a logout/login link -->
+    <!-- User profile display: shows current user name and provides a logout link -->
     <div class="user-profile">
+        <!-- Exibição do Nome -->
         {% if session.get('user') %}
-            Hello, {{ session['user']['name'] }}
+            Olá, {{ session['user']['name'] }}
+        {% else %}
+            Olá, visitante
+        {% endif %}
+
+        <!-- Exibição do Botão -->
+        {% if session.get('user') %}
             <a href="/auth/logout" class="btn-logout">Logout</a>
         {% else %}
-            Hello, visitor
             <a href="/auth/login" class="btn-login">Login</a>
         {% endif %}
     </div>
-
     <section>
         <h3>New Measurement</h3>
         <form action="/api/dashboard/add" method="POST">
-            <!-- Date and time input, automatically filled with current local time, fully editable -->
-            <input type="datetime-local" name="carimbo" id="carimbo" class="full-width" required>
             <input type="number" step="0.01" name="weight" placeholder="Weight" required>
             <input type="number" step="0.01" name="fat" placeholder="Fat %" required>
             <input type="number" step="0.01" name="visceral" placeholder="Visc." required>
@@ -62,12 +78,6 @@
     </div>
 
     <script>
-        // Automatically set current local date and time in the datetime-local input
-        const now = new Date();
-        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-        document.getElementById('carimbo').value = now.toISOString().slice(0, 16);
-
-        // Fetch chart history data
         fetch('/api/dashboard/history')
             .then(response => response.json())
             .then(data => {
