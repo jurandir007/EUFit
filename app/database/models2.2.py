@@ -1,7 +1,5 @@
 #app/database/models.py
 from app.modules.core.database import db
-from flask_login import UserMixin
-from app.modules.core.database import db
 
 
 class Eu2016(db.Model):
@@ -27,7 +25,7 @@ class Eu2016(db.Model):
         return f"<Record {self.id} - {self.carimbo}>"
 
 
-class User(UserMixin, db.Model):
+class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     google_id = db.Column(db.String(100), unique=True, nullable=False)
