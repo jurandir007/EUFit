@@ -1,68 +1,115 @@
-from flask import Blueprint, render_template, request, redirect, url_for
+import uuid
+from flask import Blueprint, render_template, request, redirect, url_for, make_response
 from datetime import datetime
-from flask_login import login_required, current_user
-from app.database.models import Eu2016
+from flask_login import login_required, current_user, login_user
+from app.database.models import Eu2016, User
 from app.modules.core.database import db
+from backup_db import run_backup
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
-# Rota pública para visualização geral (sem exigir login)
 @dashboard_bp.route('/view', methods=['GET'])
 def view_dashboard():
-    """Render the main dashboard without requiring authentication."""
-    records = Eu2016.query.order_by(Eu2016.carimbo.desc()).all()
-    return render_template('dashboard.html', history=records)
+    """Render the main dashboard ensuring strict data isolation and correct button visibility."""
+    is_anonymous = False
+    is_dummy_user = False
+    
+    if current_user.is_authenticated:
+        if current_user.id == 3:
+            is_dummy_user = True
+        elif current_user.name == "Anonymous User" or request.cookies.get('anon_token'):
+            is_anonymous = True
 
-# Rota de inspeção protegida (exibe apenas os dados do usuário logado)
+    if current_user.is_authenticated:
+        records = Eu2016.query.filter_by(fk_user_id=current_user.id).order_by(Eu2016.carimbo.desc()).all()
+    else:
+        records = []
+
+    return render_template(
+        'dashboard.html', 
+        history=records, 
+        is_anonymous=is_anonymous,
+        is_dummy_user=is_dummy_user
+    )
+
 @dashboard_bp.route('/inspect', methods=['GET'])
+@login_required
 def inspect_history():
-    """Render the inspection page showing the 30 oldest records for user ID 1."""
-    records = Eu2016.query.filter_by(fk_user_id=1).order_by(Eu2016.carimbo.asc()).limit(30).all()
-    return render_template('inspect.html', history=records)
+    """Render inspection page showing records filtered exclusively for the current user."""
+    records = Eu2016.query.filter_by(fk_user_id=current_user.id).order_by(Eu2016.carimbo.desc()).all()
+    is_dummy_user = (current_user.id == 3)
+    return render_template('inspect.html', history=records, current_user=current_user, is_dummy_user=is_dummy_user)
 
-@dashboard_bp.route('/delete', methods=['POST'])
-@login_required
-def delete_measurement():
-    timestamp_str = request.form.get('timestamp')
+@dashboard_bp.route('/anonymous-login')
+def anonymous_login():
+    """Handle persistent anonymous identity via cookie and UUID."""
+    anon_token = request.cookies.get('anon_token')
+    user = None
 
-    if not timestamp_str:
-        return "Erro: Timestamp não enviado.", 400
+    if anon_token:
+        user = User.query.filter_by(google_id=anon_token).first()
 
-    try:
-        dt_object = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S.%f')
-        record = Eu2016.query.filter_by(carimbo=dt_object, fk_user_id=current_user.id).first()
-
-        if record:
-            db.session.delete(record)
-            db.session.commit()
-
-    except Exception as e:
-        print(f"Erro na deleção: {e}")
-        db.session.rollback()
-
-    return redirect(url_for('dashboard.inspect_history'))
-
-@dashboard_bp.route('/edit/<path:timestamp>', methods=['GET', 'POST'])
-@login_required
-def edit_measurement(timestamp):
-    dt_object = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S.%f')
-    record = Eu2016.query.filter_by(carimbo=dt_object, fk_user_id=current_user.id).first_or_404()
-
-    if request.method == 'POST':
-        def safe_float(value):
-            return float(value) if value and value.strip() != '' else None
-
-        record.peso = safe_float(request.form.get('peso'))
-        record.gordura = safe_float(request.form.get('gordura'))
-        record.musculo = safe_float(request.form.get('musculo'))
-        record.basal = safe_float(request.form.get('basal'))
-        record.idade = safe_float(request.form.get('idade'))
-        record.viceral = safe_float(request.form.get('viceral'))
-
+    if not user:
+        anon_token = str(uuid.uuid4())
+        user = User(
+            google_id=anon_token,
+            email=f"anon_{anon_token[:8]}@eufit.local",
+            name="Anonymous User"
+        )
+        db.session.add(user)
         db.session.commit()
-        return redirect(url_for('dashboard.inspect_history'))
 
-    return render_template('edit.html', record=record)
+    login_user(user)
+    
+    response = make_response(redirect(url_for('dashboard.view_dashboard')))
+    response.set_cookie('anon_token', anon_token, max_age=60*60*24*365)
+    
+    return response
+
+@dashboard_bp.route('/login-dummy', methods=['POST'])
+def login_dummy_user():
+    """Log in directly as the fictitious user (ID 3)."""
+    dummy_user = User.query.get(3)
+    
+    if dummy_user:
+        login_user(dummy_user)
+    
+    return redirect(url_for('dashboard.view_dashboard'))
+
+@dashboard_bp.route('/exit-dummy', methods=['POST'])
+@login_required
+def exit_dummy_user():
+    """Switch back from the fictitious user to the original anonymous cookie user."""
+    anon_token = request.cookies.get('anon_token')
+    user = None
+
+    if anon_token:
+        user = User.query.filter_by(google_id=anon_token).first()
+
+    if not user:
+        anon_token = str(uuid.uuid4())
+        user = User(
+            google_id=anon_token,
+            email=f"anon_{anon_token[:8]}@eufit.local",
+            name="Anonymous User"
+        )
+        db.session.add(user)
+        db.session.commit()
+
+    login_user(user)
+    
+    response = make_response(redirect(url_for('dashboard.view_dashboard')))
+    response.set_cookie('anon_token', anon_token, max_age=60*60*24*365)
+    
+    return response
+
+@dashboard_bp.route('/delete-dummy', methods=['POST'])
+@login_required
+def delete_dummy_data():
+    """Delete all records belonging exclusively to the current user."""
+    Eu2016.query.filter_by(fk_user_id=current_user.id).delete()
+    db.session.commit()
+    return redirect(url_for('dashboard.view_dashboard'))
 
 @dashboard_bp.route('/add', methods=['POST'])
 @login_required
@@ -99,3 +146,48 @@ def add_measurement():
     db.session.commit()
 
     return redirect(url_for('dashboard.view_dashboard'))
+
+@dashboard_bp.route('/delete', methods=['POST'])
+@login_required
+def delete_measurement():
+    timestamp_str = request.form.get('timestamp')
+
+    if not timestamp_str:
+        return "Erro: Timestamp não enviado.", 400
+
+    try:
+        dt_object = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S.%f')
+        record = Eu2016.query.filter_by(carimbo=dt_object, fk_user_id=current_user.id).first()
+
+        if record:
+            run_backup()  
+            db.session.delete(record)
+            db.session.commit()
+
+    except Exception as e:
+        print(f"Erro na deleção: {e}")
+        db.session.rollback()
+
+    return redirect(url_for('dashboard.inspect_history'))
+
+@dashboard_bp.route('/edit/<path:timestamp>', methods=['GET', 'POST'])
+@login_required
+def edit_measurement(timestamp):
+    dt_object = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S.%f')
+    record = Eu2016.query.filter_by(carimbo=dt_object, fk_user_id=current_user.id).first_or_404()
+
+    if request.method == 'POST':
+        def safe_float(value):
+            return float(value) if value and value.strip() != '' else None
+
+        record.peso = safe_float(request.form.get('peso'))
+        record.gordura = safe_float(request.form.get('gordura'))
+        record.musculo = safe_float(request.form.get('musculo'))
+        record.basal = safe_float(request.form.get('basal'))
+        record.idade = safe_float(request.form.get('idade'))
+        record.viceral = safe_float(request.form.get('viceral'))
+
+        db.session.commit()
+        return redirect(url_for('dashboard.inspect_history'))
+
+    return render_template('edit.html', record=record)

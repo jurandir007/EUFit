@@ -43,6 +43,25 @@
 
     <section>
         <h3>New Measurement</h3>
+		{% if is_anonymous or is_dummy_user %}
+    <div class="anonymous-actions-container" style="margin: 20px auto; text-align: center;">
+        {% if not is_dummy_user %}
+            <!-- Botão para Entrar no modo demonstração (Verde) -->
+            <form action="{{ url_for('dashboard.login_dummy_user') }}" method="POST">
+                <button type="submit" class="btn" style="background-color: #10b981; color: #ffffff; padding: 0.8rem 1.5rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                    Enter demo mode
+                </button>
+            </form>
+        {% else %}
+            <!-- Mesmo botão alterado para Sair do modo demonstração (Vermelho) -->
+            <form action="{{ url_for('dashboard.exit_dummy_user') }}" method="POST">
+                <button type="submit" class="btn" style="background-color: #ef4444; color: #ffffff; padding: 0.8rem 1.5rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                    Exit demo mode
+                </button>
+            </form>
+        {% endif %}
+    </div>
+{% endif %}
         <form action="/api/dashboard/add" method="POST">
             <!-- Date and time input, automatically filled with current local time, fully editable -->
             <input type="datetime-local" name="carimbo" id="carimbo" class="full-width" required>

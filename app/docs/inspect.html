@@ -40,6 +40,11 @@
     <a href="{{ url_for('dashboard.view_dashboard') }}" class="back-btn">← Back to Dashboard</a>
 
     <h2 style="text-align: center;">Measurement History</h2>
+    {% if is_dummy_user %}
+    <div style="background-color: #fef08a; color: #854d0e; padding: 12px; text-align: center; font-weight: bold; margin: 15px auto; max-width: 800px; border-radius: 6px; border: 1px solid #facc15;">
+        ⚠️ Demo Mode Active (Viewing Demo User Records)
+    </div>
+{% endif %}
 
     <table>
         <thead>

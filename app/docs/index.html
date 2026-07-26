@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>{{ site_name }}</title>
 <style>
-    /* Estilos consolidados */
+    /* Consolidated styles */
     body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; padding: 15px; background-color: #f1f5f9; color: #334155; margin: 0; display: flex; flex-direction: column; justify-content: center; min-height: 100vh; }
     .card { max-width: 650px; margin: 2rem auto; padding: 2.5rem; background-color: #ffffff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); text-align: center; }
     h1 { color: #0f172a; font-size: 2rem; margin-top: 0; margin-bottom: 1rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }
@@ -14,7 +14,7 @@
     .features-box p { margin: 0.5rem 0; font-size: 0.95rem; }
     .conclusion-text { margin-bottom: 2rem; }
 
-    /* Estilos dos botões */
+    /* Button styles */
     .btn-container { display: flex; flex-direction: column; gap: 10px; }
     .btn { display: block; text-decoration: none; padding: 0.8rem 1.5rem; border-radius: 6px; font-weight: 600; font-size: 1rem; transition: background-color 0.3s ease; }
     .btn-login { background-color: #64748b; color: #ffffff; }
@@ -42,10 +42,10 @@
         More than just a simple log, this tool transforms numbers into strategic insights. It perfectly unites software development and self-care, providing precise control of my physical evolution.
     </p>
 
-    <div class="btn-container">
-        <a href="/auth/login" class="btn btn-login">Login com Google</a>
-        <a href="/api/dashboard/view" class="btn btn-dashboard">Entrar sem login</a>
-    </div>
+	<div class="btn-container">
+	    <a href="/auth/login" class="btn btn-login">Google Login</a>
+	    <a href="/auth/anonymous-login" class="btn btn-dashboard">Anonymous Access</a>
+	</div>
 </div>
 
 </body>
