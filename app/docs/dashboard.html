@@ -6,31 +6,27 @@
     <title>EUFit Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 10px; background-color: #f1f5f9; color: #333; margin: 0; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 10px; background-color: #f1f5f9; color: #333; margin: 0; box-sizing: border-box; }
 
-        /* User profile container: aligns name and logout button at the top right */
-        .user-profile { position: absolute; top: 10px; right: 15px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #0f172a; background: #e2e8f0; padding: 5px 12px; border-radius: 20px; }
-        /* Logout and login buttons */
+        .user-profile { position: absolute; top: 10px; right: 15px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #0f172a; background: #e2e8f0; padding: 5px 12px; border-radius: 20px; z-index: 10; }
         .btn-logout { color: #dc2626; text-decoration: none; font-size: 12px; cursor: pointer; }
         .btn-login { color: #0f172a; text-decoration: none; font-size: 12px; cursor: pointer; }
 
-        /* Form section */
-        section { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 10px; }
+        section { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
         h3 { margin: 0 0 10px 0; font-size: 16px; color: #0077b6; }
         form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box; }
         .full-width { grid-column: span 2; }
         button { grid-column: span 2; padding: 10px; background-color: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
 
-        /* Chart container */
-        .chart-container { background: white; padding: 10px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex-grow: 1; min-height: 200px; }
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
+        .chart-card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); height: 250px; position: relative; }
         canvas { width: 100% !important; height: 100% !important; }
 
         .inspect-btn { display: block; text-align: center; background-color: #008CBA; color: white; padding: 8px; text-decoration: none; border-radius: 6px; margin-top: 10px; font-size: 14px; }
     </style>
 </head>
 <body>
-    <!-- User profile display: shows current user name and provides a logout/login link -->
     <div class="user-profile">
         {% if session.get('user') %}
             Hello, {{ session['user']['name'] }}
@@ -43,27 +39,24 @@
 
     <section>
         <h3>New Measurement</h3>
-		{% if is_anonymous or is_dummy_user %}
-    <div class="anonymous-actions-container" style="margin: 20px auto; text-align: center;">
-        {% if not is_dummy_user %}
-            <!-- Botão para Entrar no modo demonstração (Verde) -->
-            <form action="{{ url_for('dashboard.login_dummy_user') }}" method="POST">
-                <button type="submit" class="btn" style="background-color: #10b981; color: #ffffff; padding: 0.8rem 1.5rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
-                    Enter demo mode
-                </button>
-            </form>
-        {% else %}
-            <!-- Mesmo botão alterado para Sair do modo demonstração (Vermelho) -->
-            <form action="{{ url_for('dashboard.exit_dummy_user') }}" method="POST">
-                <button type="submit" class="btn" style="background-color: #ef4444; color: #ffffff; padding: 0.8rem 1.5rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
-                    Exit demo mode
-                </button>
-            </form>
+        {% if is_anonymous or is_dummy_user %}
+        <div class="anonymous-actions-container" style="margin: 10px auto; text-align: center;">
+            {% if not is_dummy_user %}
+                <form action="{{ url_for('dashboard.login_dummy_user') }}" method="POST">
+                    <button type="submit" class="btn" style="background-color: #10b981; color: #ffffff; padding: 0.6rem 1.2rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                        Enter demo mode
+                    </button>
+                </form>
+            {% else %}
+                <form action="{{ url_for('dashboard.exit_dummy_user') }}" method="POST">
+                    <button type="submit" class="btn" style="background-color: #ef4444; color: #ffffff; padding: 0.6rem 1.2rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                        Exit demo mode
+                    </button>
+                </form>
+            {% endif %}
+        </div>
         {% endif %}
-    </div>
-{% endif %}
-        <form action="/api/dashboard/add" method="POST">
-            <!-- Date and time input, automatically filled with current local time, fully editable -->
+        <form action="{{ url_for('dashboard.add_measurement') }}" method="POST">
             <input type="datetime-local" name="carimbo" id="carimbo" class="full-width" required>
             <input type="number" step="0.01" name="weight" placeholder="Weight" required>
             <input type="number" step="0.01" name="fat" placeholder="Fat %" required>
@@ -73,38 +66,63 @@
             <input type="number" step="0.01" name="basal" placeholder="BMR">
             <button type="submit">Save</button>
         </form>
-        <a href="/api/dashboard/inspect" class="inspect-btn">History Table</a>
+        <a href="{{ url_for('dashboard.inspect_history') }}" class="inspect-btn">History Table</a>
     </section>
 
-    <div class="chart-container">
-        <canvas id="myChart"></canvas>
+    <div class="charts-grid">
+        <div class="chart-card"><canvas id="weightChart"></canvas></div>
+        <div class="chart-card"><canvas id="fatChart"></canvas></div>
+        <div class="chart-card"><canvas id="visceralChart"></canvas></div>
+        <div class="chart-card"><canvas id="muscleChart"></canvas></div>
+        <div class="chart-card"><canvas id="ageChart"></canvas></div>
+        <div class="chart-card"><canvas id="basalChart"></canvas></div>
     </div>
 
     <script>
-        // Automatically set current local date and time in the datetime-local input
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         document.getElementById('carimbo').value = now.toISOString().slice(0, 16);
 
-        // Fetch chart history data
-        fetch('/api/dashboard/history')
+        fetch("{{ url_for('dashboard.get_user_metrics_timeline') }}")
             .then(response => response.json())
             .then(data => {
-                const ctx = document.getElementById('myChart').getContext('2d');
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: data.map(item => item.date),
-                        datasets: [{
-                            label: 'Weight',
-                            data: data.map(item => item.weight),
-                            borderColor: '#0077b6',
-                            tension: 0.1
-                        }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false }
-                });
-            });
+                function createMetricChart(canvasId, labelName, chartData, colorHex) {
+                    const ctx = document.getElementById(canvasId).getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: data.dates,
+                            datasets: [{
+                                label: labelName,
+                                data: chartData,
+                                borderColor: colorHex,
+                                backgroundColor: colorHex,
+                                tension: 0.1,
+                                fill: false
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top' }
+                            },
+                            scales: {
+                                x: { display: true, title: { display: true, text: 'Timestamp' } },
+                                y: { display: true, title: { display: true, text: labelName } }
+                            }
+                        }
+                    });
+                }
+
+                createMetricChart('weightChart', 'Weight', data.weight, 'rgba(78, 115, 223, 1)');
+                createMetricChart('fatChart', 'Fat %', data.fat, 'rgba(28, 200, 138, 1)');
+                createMetricChart('visceralChart', 'Visceral', data.visceral, 'rgba(246, 194, 62, 1)');
+                createMetricChart('muscleChart', 'Muscle', data.muscle, 'rgba(231, 74, 59, 1)');
+                createMetricChart('ageChart', 'Age', data.age, 'rgba(54, 185, 204, 1)');
+                createMetricChart('basalChart', 'BMR', data.basal, 'rgba(133, 135, 150, 1)');
+            })
+            .catch(error => console.error('Error loading metrics timeline data:', error));
     </script>
 </body>
 </html>

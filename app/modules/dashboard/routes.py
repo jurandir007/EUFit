@@ -1,5 +1,5 @@
 import uuid
-from flask import Blueprint, render_template, request, redirect, url_for, make_response
+from flask import Blueprint, render_template, request, redirect, url_for, make_response, jsonify
 from datetime import datetime
 from flask_login import login_required, current_user, login_user
 from app.database.models import Eu2016, User
@@ -191,3 +191,32 @@ def edit_measurement(timestamp):
         return redirect(url_for('dashboard.inspect_history'))
 
     return render_template('edit.html', record=record)
+    
+    
+#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+@dashboard_bp.route('/api/user-metrics-timeline', methods=['GET'])
+@login_required
+def get_user_metrics_timeline():
+    """Fetch chronological historical records for the active user to render individual metrics charts."""
+    records = Eu2016.query.filter_by(fk_user_id=current_user.id).order_by(Eu2016.carimbo.asc()).all()
+    
+    timeline_data = {
+        "dates": [],
+        "weight": [],
+        "fat": [],
+        "visceral": [],
+        "muscle": [],
+        "age": [],
+        "basal": []
+    }
+    
+    for record in records:
+        timeline_data["dates"].append(record.carimbo.strftime('%Y-%m-%d %H:%M:%S'))
+        timeline_data["weight"].append(record.peso)
+        timeline_data["fat"].append(record.gordura)
+        timeline_data["visceral"].append(record.viceral)
+        timeline_data["muscle"].append(record.musculo)
+        timeline_data["age"].append(record.idade)
+        timeline_data["basal"].append(record.basal)
+        
+    return jsonify(timeline_data)
