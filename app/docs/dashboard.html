@@ -19,6 +19,10 @@
         .full-width { grid-column: span 2; }
         button { grid-column: span 2; padding: 10px; background-color: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
 
+        .filter-container { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
+        .filter-btn { padding: 6px 12px; background-color: #e2e8f0; color: #0f172a; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .filter-btn.active { background-color: #0077b6; color: white; }
+
         .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
         .chart-card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); height: 250px; position: relative; }
         canvas { width: 100% !important; height: 100% !important; }
@@ -69,6 +73,14 @@
         <a href="{{ url_for('dashboard.inspect_history') }}" class="inspect-btn">History Table</a>
     </section>
 
+    <!-- Filtros de Período -->
+    <div class="filter-container">
+        <button class="filter-btn" data-period="7days" onclick="loadChartData('7days')">Last 7 Days</button>
+        <button class="filter-btn active" data-period="30days" onclick="loadChartData('30days')">Last 30 Days</button>
+        <button class="filter-btn" data-period="current_month" onclick="loadChartData('current_month')">Current Month</button>
+        <button class="filter-btn" data-period="last_year" onclick="loadChartData('last_year')">Last Year</button>
+    </div>
+
     <div class="charts-grid">
         <div class="chart-card"><canvas id="weightChart"></canvas></div>
         <div class="chart-card"><canvas id="fatChart"></canvas></div>
@@ -83,46 +95,70 @@
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         document.getElementById('carimbo').value = now.toISOString().slice(0, 16);
 
-        fetch("{{ url_for('dashboard.get_user_metrics_timeline') }}")
-            .then(response => response.json())
-            .then(data => {
-                function createMetricChart(canvasId, labelName, chartData, colorHex) {
-                    const ctx = document.getElementById(canvasId).getContext('2d');
-                    new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: data.dates,
-                            datasets: [{
-                                label: labelName,
-                                data: chartData,
-                                borderColor: colorHex,
-                                backgroundColor: colorHex,
-                                tension: 0.1,
-                                fill: false
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { display: true, position: 'top' }
-                            },
-                            scales: {
-                                x: { display: true, title: { display: true, text: 'Timestamp' } },
-                                y: { display: true, title: { display: true, text: labelName } }
-                            }
-                        }
-                    });
-                }
+        let charts = {};
 
-                createMetricChart('weightChart', 'Weight', data.weight, 'rgba(78, 115, 223, 1)');
-                createMetricChart('fatChart', 'Fat %', data.fat, 'rgba(28, 200, 138, 1)');
-                createMetricChart('visceralChart', 'Visceral', data.visceral, 'rgba(246, 194, 62, 1)');
-                createMetricChart('muscleChart', 'Muscle', data.muscle, 'rgba(231, 74, 59, 1)');
-                createMetricChart('ageChart', 'Age', data.age, 'rgba(54, 185, 204, 1)');
-                createMetricChart('basalChart', 'BMR', data.basal, 'rgba(133, 135, 150, 1)');
-            })
-            .catch(error => console.error('Error loading metrics timeline data:', error));
+        function loadChartData(period = '30days') {
+            // Atualiza classe ativa dos botões
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if(btn.getAttribute('data-period') === period) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            fetch(`{{ url_for('dashboard.get_user_metrics_timeline') }}?period=${period}`)
+                .then(response => response.json())
+                .then(data => {
+                    function updateOrCreateChart(canvasId, labelName, chartData, colorHex) {
+                        const ctx = document.getElementById(canvasId).getContext('2d');
+                        
+                        if (charts[canvasId]) {
+                            charts[canvasId].data.labels = data.dates;
+                            charts[canvasId].data.datasets[0].data = chartData;
+                            charts[canvasId].update();
+                            return;
+                        }
+
+                        charts[canvasId] = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: data.dates,
+                                datasets: [{
+                                    label: labelName,
+                                    data: chartData,
+                                    borderColor: colorHex,
+                                    backgroundColor: colorHex,
+                                    tension: 0.1,
+                                    fill: false
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { display: true, position: 'top' }
+                                },
+                                scales: {
+                                    x: { display: true, title: { display: true, text: 'Timestamp' } },
+                                    y: { display: true, title: { display: true, text: labelName } }
+                                }
+                            }
+                        });
+                    }
+
+                    updateOrCreateChart('weightChart', 'Weight', data.weight, 'rgba(78, 115, 223, 1)');
+                    updateOrCreateChart('fatChart', 'Fat %', data.fat, 'rgba(28, 200, 138, 1)');
+                    updateOrCreateChart('visceralChart', 'Visceral', data.visceral, 'rgba(246, 194, 62, 1)');
+                    updateOrCreateChart('muscleChart', 'Muscle', data.muscle, 'rgba(231, 74, 59, 1)');
+                    updateOrCreateChart('ageChart', 'Age', data.age, 'rgba(54, 185, 204, 1)');
+                    updateOrCreateChart('basalChart', 'BMR', data.basal, 'rgba(133, 135, 150, 1)');
+                })
+                .catch(error => console.error('Error loading metrics timeline data:', error));
+        }
+
+        // Carrega padrão de 30 dias ao abrir a página
+        loadChartData('30days');
     </script>
 </body>
 </html>
