@@ -6,7 +6,6 @@ from app.database.models import Eu2016, User
 from app.modules.core.database import db
 from backup_db import run_backup    
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -199,35 +198,6 @@ def edit_measurement(timestamp):
 @dashboard_bp.route('/api/user-metrics-timeline', methods=['GET'])
 @login_required
 def get_user_metrics_timeline():
-    """Fetch chronological historical records for the active user to render individual metrics charts."""
-    records = Eu2016.query.filter_by(fk_user_id=current_user.id).order_by(Eu2016.carimbo.asc()).all()
-    
-    timeline_data = {
-        "dates": [],
-        "weight": [],
-        "fat": [],
-        "visceral": [],
-        "muscle": [],
-        "age": [],
-        "basal": []
-    }
-    
-    for record in records:
-        timeline_data["dates"].append(record.carimbo.strftime('%Y-%m-%d %H:%M:%S'))
-        timeline_data["weight"].append(record.peso)
-        timeline_data["fat"].append(record.gordura)
-        timeline_data["visceral"].append(record.viceral)
-        timeline_data["muscle"].append(record.musculo)
-        timeline_data["age"].append(record.idade)
-        timeline_data["basal"].append(record.basal)
-        
-    return jsonify(timeline_data)
-    
-#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-@dashboard_bp.route('/api/user-metrics-timeline', methods=['GET'])
-@login_required
-def get_user_metrics_timeline():
-    """Fetch chronological historical records for the active user to render individual metrics charts with period filtering."""
     period = request.args.get('period', '30days')
     
     query = Eu2016.query.filter_by(fk_user_id=current_user.id)
@@ -243,7 +213,7 @@ def get_user_metrics_timeline():
         start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         query = query.filter(Eu2016.carimbo >= start_date)
     elif period == 'last_year':
-        start_date = now - relativedelta(years=1)
+        start_date = now - timedelta(days=365)
         query = query.filter(Eu2016.carimbo >= start_date)
 
     records = query.order_by(Eu2016.carimbo.asc()).all()
