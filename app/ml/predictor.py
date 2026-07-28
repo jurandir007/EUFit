@@ -11,11 +11,9 @@ class FitMLService:
         self.trained_models = {}
 
     def prepare_ml_data(self):
-        """
-        Loads data from the database specifically for the active user,
-        ensuring strict data isolation based on fk_user_id.
-        Stores the prepared DataFrame in self.df_ml_data.
-        """
+        # Loads data from the database specifically for the active user,
+        # ensuring strict data isolation based on fk_user_id.
+        # Stores the prepared DataFrame in self.df_ml_data.
         records = Eu2016.query.filter_by(fk_user_id=self.user_id).all()
         if records:
             data = []
@@ -67,7 +65,7 @@ class FitMLService:
                 return False
 
         input_data = pd.DataFrame([[record.peso, record.gordura, record.viceral]], 
-                                  columns=['peso', 'gordura', 'viceral'])
+                                    columns=['peso', 'gordura', 'viceral'])
 
         predictions = {}
         for target, model in self.trained_models.items():

@@ -2,6 +2,7 @@
 from app import create_app
 from app.services.history_service import get_formatted_history
 from app.database.models import Eu2016  # Importado do arquivo models.py
+from datetime import datetime
 
 
 def test_ultimos_10():
@@ -11,18 +12,26 @@ def test_ultimos_10():
         print("--- Buscando os 10 últimos registros ---")
         try:
             # Consulta os registros ordenando pelo carimbo de forma decrescente
-            registros = Eu2016.query.order_by(Eu2016.carimbo.desc()).limit(10).all()
+            registros = Eu2016.query.order_by(Eu2016.__table__.c['Carimbo de data/hora'].desc()).limit(10).all()
 
             # Formata conforme a lógica original definida em history_service.py
-            dados = [{
-                "date": r.carimbo.strftime("%Y-%m-%d %H:%M:%S") if r.carimbo else None,
-                "weight": r.peso,
-                "fat": r.gordura,
-                "muscle": r.musculo,
-                "basal": r.basal,
-                "age": r.idade,
-                "visceral": r.viceral
-            } for r in registros]
+            dados = []
+            for r in registros:
+                carimbo = getattr(r, 'Carimbo de data/hora', None)
+                if carimbo is None:
+                    carimbo = datetime.now()
+                    setattr(r, 'Carimbo de data/hora', carimbo)
+                    db.session.commit()
+
+                dados.append({
+                    "date": carimbo.strftime("%Y-%m-%d %H:%M:%S") if carimbo else None,
+                    "weight": r.Peso,
+                    "fat": r.Gordura,
+                    "muscle": r.Musculo,
+                    "basal": r.basal,
+                    "age": r.Idade,
+                    "visceral": r.viceral
+                })
 
             for i, item in enumerate(dados, 1):
                 print(f"{i}: {item}")

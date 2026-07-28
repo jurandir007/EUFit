@@ -1,0 +1,7 @@
+gspread>=6.2.1
+psycopg>=3.3.4
+psycopg2-binary==2.9.12
+sqlalchemy==2.1.0b3
+
+[dev]
+pytest>=8.0.0

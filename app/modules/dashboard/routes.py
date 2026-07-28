@@ -1,3 +1,4 @@
+#app/modules/dashboard/routes.py
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, make_response, jsonify
 from datetime import datetime
@@ -6,6 +7,9 @@ from app.database.models import Eu2016, User
 from app.modules.core.database import db
 from backup_db import run_backup    
 from datetime import datetime, timedelta
+from app.services.history_service import receber_e_processar_dados
+import sys
+print("Módulo de models carregado na rota:", sys.modules.get('app.database.models'))
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -119,9 +123,11 @@ def add_measurement():
     gordura = request.form.get('fat')
     visceral = request.form.get('visceral')
 
+    # Validação 1: Campos em branco
     if not peso or not gordura or not visceral:
         return "Erro: Peso, Gordura e Visceral são obrigatórios.", 400
 
+    # Validação 2: Tipos de dados
     try:
         peso_val = float(peso)
         gordura_val = float(gordura)
@@ -129,25 +135,24 @@ def add_measurement():
     except ValueError:
         return "Erro: Os valores numéricos são inválidos.", 400
 
+    # Validação 3: Regras de negócio
     if peso_val < 100 or peso_val > 10000:
         return "Erro: O peso deve estar entre 100 e 10.000.", 400
 
-    new_record = Eu2016(
-        carimbo=datetime.now(),
-        peso=peso_val,
-        gordura=gordura_val,
-        viceral=visceral_val,
-        musculo=request.form.get('muscle') or None,
-        idade=request.form.get('age') or None,
-        basal=request.form.get('basal') or None,
-        fk_user_id=current_user.id
-    )
-
-    db.session.add(new_record)
-    db.session.commit()
+    try:
+        # Aciona o protocolo de 4 passos (Orquestrador)
+        receber_e_processar_dados(
+            user_id=current_user.id,
+            peso=peso_val,
+            gordura=gordura_val,
+            viceral=visceral_val
+        )
+    except Exception as e:
+        print(f"Erro no processamento/ML: {e}")
+        db.session.rollback()
+        return f"Erro interno ao processar predições: {str(e)}", 500
 
     return redirect(url_for('dashboard.view_dashboard'))
-
 @dashboard_bp.route('/delete', methods=['POST'])
 @login_required
 def delete_measurement():

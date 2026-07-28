@@ -1,0 +1,30 @@
+def analisar_e_prever(self, record):
+        """
+        Ativado pelo protocolo quando a str_comb solicita uma predição.
+        Ele gera os resultados matemáticos e substitui a str_comb pelo resultado final.
+        """
+        # Treina o modelo se necessário
+        if not self.trained_models:
+            success = self.train_models()
+            if not success:
+                # Se não houver dados históricos para treinar, avisa na string
+                record.str_comb = record.str_comb.replace("AGUARDANDO_PREDICAO", "FALHA_ML_SEM_DADOS")
+                return False
+
+        # Prepara os dados de entrada
+        input_data = pd.DataFrame([[record.peso, record.gordura, record.viceral]], 
+                                  columns=['peso', 'gordura', 'viceral'])
+
+        # Faz as predições
+        for target, model in self.trained_models.items():
+            pred = model.predict(input_data)[0]
+            setattr(record, target, round(float(pred), 2))
+
+        # Finaliza a str_comb com o texto definitivo contendo as predições
+        record.str_comb = (
+            f"DADOS COMBINADOS -> Peso: {record.peso}kg | Gordura: {record.gordura}% | "
+            f"Músculo (Prev): {record.musculo}% | Idade (Prev): {record.idade} | "
+            f"Basal (Prev): {record.basal}kcal | Viceral: {record.viceral}"
+        )
+        
+        return True
