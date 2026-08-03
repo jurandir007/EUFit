@@ -116,36 +116,51 @@ def delete_dummy_data():
     db.session.commit()
     return redirect(url_for('dashboard.view_dashboard'))
 
+
+
+#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
 @dashboard_bp.route('/add', methods=['POST'])
 @login_required
 def add_measurement():
     peso = request.form.get('weight')
     gordura = request.form.get('fat')
     visceral = request.form.get('visceral')
+    
+    # Captura dos campos opcionais
+    muscle = request.form.get('muscle')
+    age = request.form.get('age')
+    basal = request.form.get('basal')
 
-    # Validação 1: Campos em branco
     if not peso or not gordura or not visceral:
         return "Erro: Peso, Gordura e Visceral são obrigatórios.", 400
 
-    # Validação 2: Tipos de dados
     try:
         peso_val = float(peso)
         gordura_val = float(gordura)
         visceral_val = float(visceral)
+        
+        # Conversão segura (Safe Cast) para os opcionais
+        muscle_val = float(muscle) if muscle and muscle.strip() != '' else None
+        age_val = float(age) if age and age.strip() != '' else None
+        basal_val = float(basal) if basal and basal.strip() != '' else None
+        
     except ValueError:
-        return "Erro: Os valores numéricos são inválidos.", 400
+        return "Erro: Os valores numéricos informados são inválidos.", 400
 
-    # Validação 3: Regras de negócio
     if peso_val < 100 or peso_val > 10000:
         return "Erro: O peso deve estar entre 100 e 10.000.", 400
 
     try:
-        # Aciona o protocolo de 4 passos (Orquestrador)
+        # Delegação para o serviço unificado com os 6 parâmetros
         receber_e_processar_dados(
             user_id=current_user.id,
             peso=peso_val,
             gordura=gordura_val,
-            viceral=visceral_val
+            viceral=visceral_val,
+            musculo=muscle_val,
+            idade=age_val,
+            basal=basal_val
         )
     except Exception as e:
         print(f"Erro no processamento/ML: {e}")
@@ -153,6 +168,8 @@ def add_measurement():
         return f"Erro interno ao processar predições: {str(e)}", 500
 
     return redirect(url_for('dashboard.view_dashboard'))
+    
+#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 @dashboard_bp.route('/delete', methods=['POST'])
 @login_required
 def delete_measurement():

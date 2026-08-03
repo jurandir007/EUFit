@@ -1,4 +1,4 @@
-#app/database/models.py
+# app/database/models.py
 from app.modules.core.database import db
 from flask_login import UserMixin
 from sqlalchemy import Computed
@@ -14,9 +14,10 @@ class Eu2016(db.Model):
     basal = db.Column('basal', db.Float)
     idade = db.Column('Idade', db.Float)
     viceral = db.Column('viceral', db.Float)
-    str_comb = db.Column('str_comb', db.String(10)) # <--- ADICIONE ESTA LINHA
     
-   
+    # Declarada como coluna gerada/computada pelo servidor (banco de dados)
+    str_comb = db.Column('str_comb', db.String(10), Computed('PERSISTED'))
+    
     fk_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     usuario = db.relationship('User', backref=db.backref('registros_eu2016', lazy=True))
 

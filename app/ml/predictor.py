@@ -78,3 +78,39 @@ class FitMLService:
         
         db.session.commit()
         return True
+    
+    def predict_on_the_fly(self, peso, gordura, viceral):
+        """
+        Treina o modelo com o histórico do usuário e prevê os valores 
+        de músculo, idade e basal em memória, sem tocar no banco.
+        """
+        if self.df_ml_data is None or self.df_ml_data.empty:
+            self.prepare_ml_data()
+            
+        # Trava de Segurança (Cold Start): Exige ao menos 5 registros para prever
+        if self.df_ml_data.empty or len(self.df_ml_data) < 5:
+            return None
+
+        success = self.train_models()
+        if not success:
+            return None
+
+        # Padroniza a entrada utilizando 'viceral' conforme exigido pelo modelo de treino
+        input_data = pd.DataFrame([{
+            'peso': float(peso), 
+            'gordura': float(gordura), 
+            'viceral': float(viceral)
+        }], columns=['peso', 'gordura', 'viceral'])
+
+        predictions = {}
+        for target, model in self.trained_models.items():
+            pred = model.predict(input_data)[0]
+            # Trava biológica (clipping): impede valores negativos em métricas corporais
+            safe_value = max(0.0, float(pred))
+            predictions[target] = round(safe_value, 2)
+
+        return {
+            'musculo': predictions.get('musculo'),
+            'idade': round(predictions.get('idade', 0)), # Idade arredondada para inteiro
+            'basal': predictions.get('basal')
+        }
