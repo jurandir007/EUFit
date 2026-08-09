@@ -9,6 +9,10 @@ from backup_db import run_backup
 from datetime import datetime, timedelta
 from app.services.history_service import receber_e_processar_dados
 import sys
+from app.ml.m_average import calculate_moving_average
+from app.ml.TLR import calculate_trend_line
+
+
 print("Módulo de models carregado na rota:", sys.modules.get('app.database.models'))
 
 dashboard_bp = Blueprint('dashboard', __name__)
@@ -215,16 +219,23 @@ def edit_measurement(timestamp):
 
     return render_template('edit.html', record=record)
     
+   
     
-#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 @dashboard_bp.route('/api/user-metrics-timeline', methods=['GET'])
 @login_required
 def get_user_metrics_timeline():
     period = request.args.get('period', '30days')
-    
-    query = Eu2016.query.filter_by(fk_user_id=current_user.id)
     now = datetime.now()
     
+    # 1. VALIDATION FOR 3 MONTHS / 40 RECORDS
+    three_months_ago = now - timedelta(days=90)
+    recent_records_count = Eu2016.query.filter_by(fk_user_id=current_user.id).filter(Eu2016.carimbo >= three_months_ago).count()
+    
+    sufficient_data = recent_records_count >= 40
+    
+    # 2. STANDARD USER FILTER
+    query = Eu2016.query.filter_by(fk_user_id=current_user.id)
     if period == '7days':
         start_date = now - timedelta(days=7)
         query = query.filter(Eu2016.carimbo >= start_date)
@@ -240,18 +251,21 @@ def get_user_metrics_timeline():
 
     records = query.order_by(Eu2016.carimbo.asc()).all()
     
+    # 3. JSON STRUCTURE
     timeline_data = {
-        "dates": [],
-        "weight": [],
-        "fat": [],
-        "visceral": [],
-        "muscle": [],
-        "age": [],
-        "basal": []
+        "sufficient_data": sufficient_data,
+        "dates": [], "weight": [], "fat": [], "visceral": [], "muscle": [], "age": [], "basal": [],
+        "ma_weight": [], "ma_fat": [], "ma_visceral": [], "ma_muscle": [], "ma_age": [], "ma_basal": [],
+        "tlr_weight": [], "tlr_fat": [], "tlr_visceral": [], "tlr_muscle": [], "tlr_age": [], "tlr_basal": []
     }
     
+    raw_dates = []
+
+    # 4. BASIC DATA EXTRACTION
     for record in records:
         timeline_data["dates"].append(record.carimbo.strftime('%Y-%m-%d %H:%M:%S'))
+        raw_dates.append(record.carimbo) 
+        
         timeline_data["weight"].append(record.peso)
         timeline_data["fat"].append(record.gordura)
         timeline_data["visceral"].append(record.viceral)
@@ -259,4 +273,20 @@ def get_user_metrics_timeline():
         timeline_data["age"].append(record.idade)
         timeline_data["basal"].append(record.basal)
         
+    # 5. CALCULATION IF THERE IS SUFFICIENT DATA
+    if sufficient_data and len(records) > 0:
+        timeline_data["ma_weight"] = calculate_moving_average(timeline_data["weight"])
+        timeline_data["ma_fat"] = calculate_moving_average(timeline_data["fat"])
+        timeline_data["ma_visceral"] = calculate_moving_average(timeline_data["visceral"])
+        timeline_data["ma_muscle"] = calculate_moving_average(timeline_data["muscle"])
+        timeline_data["ma_age"] = calculate_moving_average(timeline_data["age"])
+        timeline_data["ma_basal"] = calculate_moving_average(timeline_data["basal"])
+
+        timeline_data["tlr_weight"] = calculate_trend_line(raw_dates, timeline_data["weight"])
+        timeline_data["tlr_fat"] = calculate_trend_line(raw_dates, timeline_data["fat"])
+        timeline_data["tlr_visceral"] = calculate_trend_line(raw_dates, timeline_data["visceral"])
+        timeline_data["tlr_muscle"] = calculate_trend_line(raw_dates, timeline_data["muscle"])
+        timeline_data["tlr_age"] = calculate_trend_line(raw_dates, timeline_data["age"])
+        timeline_data["tlr_basal"] = calculate_trend_line(raw_dates, timeline_data["basal"])
+
     return jsonify(timeline_data)

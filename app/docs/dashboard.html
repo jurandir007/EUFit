@@ -81,6 +81,10 @@
         <button class="filter-btn" data-period="last_year" onclick="loadChartData('last_year')">Last Year</button>
     </div>
 
+    <div id="insufficientDataWarning" style="display: none; background-color: #ffcc00; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center; margin-bottom: 15px;">
+        Insufficient data for trend calculation (min. 40 records in the last 3 months).
+    </div>
+
     <div class="charts-grid">
         <div class="chart-card"><canvas id="weightChart"></canvas></div>
         <div class="chart-card"><canvas id="fatChart"></canvas></div>
@@ -98,7 +102,6 @@
         let charts = {};
 
         function loadChartData(period = '30days') {
-            // Atualiza classe ativa dos botões
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 if(btn.getAttribute('data-period') === period) {
                     btn.classList.add('active');
@@ -110,54 +113,285 @@
             fetch(`{{ url_for('dashboard.get_user_metrics_timeline') }}?period=${period}`)
                 .then(response => response.json())
                 .then(data => {
-                    function updateOrCreateChart(canvasId, labelName, chartData, colorHex) {
-                        const ctx = document.getElementById(canvasId).getContext('2d');
+                    const warningDiv = document.getElementById('insufficientDataWarning');
+                    if (!data.sufficient_data) {
+                        warningDiv.style.display = 'block';
+                    } else {
+                        warningDiv.style.display = 'none';
+                    }
+
+                    const formatCoordinates = (dates, values) => {
+                        if (!values || values.length === 0) return [];
+                        return values.map((val, index) => {
+                            if (val === null || val === undefined) return null;
+                            return {
+                                x: new Date(dates[index]).getTime(),
+                                y: val
+                            };
+                        }).filter(point => point !== null);
+                    };
+
+                    const calculate90DayTrend = (dates, values) => {
+                        if (!dates || !values || dates.length === 0) return [];
+                        const allCoords = formatCoordinates(dates, values);
+                        if (allCoords.length === 0) return [];
+
+                        const nowTime = new Date().getTime();
+                        const ninetyDaysAgo = nowTime - (90 * 24 * 60 * 60 * 1000);
                         
-                        if (charts[canvasId]) {
-                            charts[canvasId].data.labels = data.dates;
-                            charts[canvasId].data.datasets[0].data = chartData;
-                            charts[canvasId].update();
-                            return;
+                        const last90Pts = allCoords.filter(p => p.x >= ninetyDaysAgo);
+                        if (last90Pts.length < 2) return [];
+
+                        let n = last90Pts.length;
+                        let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+
+                        last90Pts.forEach(pt => {
+                            sumX += pt.x;
+                            sumY += pt.y;
+                            sumXY += (pt.x * pt.y);
+                            sumXX += (pt.x * pt.x);
+                        });
+
+                        const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+                        const intercept = (sumY - slope * sumX) / n;
+
+                        return allCoords.map(pt => ({
+                            x: pt.x,
+                            y: slope * pt.x + intercept
+                        }));
+                    };
+
+                    // Funções totalmente separadas para cada período selecionado
+                    function getOptionsFor7Days(labelName) {
+                        const endTime = new Date().getTime();
+                        const startTime = endTime - (6 * 24 * 60 * 60 * 1000);
+                        return {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top' },
+                                tooltip: {
+                                    callbacks: {
+                                        title: function(context) {
+                                            const timestamp = context[0].parsed.x;
+                                            return new Date(timestamp).toISOString().slice(0, 19).replace('T', ' ');
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    type: 'linear',
+                                    position: 'bottom',
+                                    title: { display: true, text: 'Timeline' },
+                                    min: startTime,
+                                    max: endTime,
+                                    bounds: 'ticks',
+                                    ticks: {
+                                        stepSize: 24 * 60 * 60 * 1000,
+                                        maxTicksLimit: 7,
+                                        callback: function(value) {
+                                            return new Date(value).toISOString().slice(0, 10);
+                                        }
+                                    },
+                                    grid: { display: true, color: 'rgba(200, 200, 200, 0.2)' }
+                                },
+                                y: { display: true, title: { display: true, text: labelName } }
+                            }
+                        };
+                    }
+
+                    function getOptionsForCurrentMonth(labelName) {
+                        const currentNow = new Date();
+                        const startOfMonth = new Date(currentNow.getFullYear(), currentNow.getMonth(), 1).getTime();
+                        return {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top' },
+                                tooltip: {
+                                    callbacks: {
+                                        title: function(context) {
+                                            const timestamp = context[0].parsed.x;
+                                            return new Date(timestamp).toISOString().slice(0, 19).replace('T', ' ');
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    type: 'linear',
+                                    position: 'bottom',
+                                    title: { display: true, text: 'Timeline' },
+                                    min: startOfMonth,
+                                    bounds: 'ticks',
+                                    ticks: {
+                                        maxTicksLimit: 8,
+                                        autoSkip: true,
+                                        maxRotation: 45,
+                                        minRotation: 45,
+                                        callback: function(value) {
+                                            return new Date(value).toISOString().slice(0, 10);
+                                        }
+                                    },
+                                    grid: { display: true, color: 'rgba(200, 200, 200, 0.2)' }
+                                },
+                                y: { display: true, title: { display: true, text: labelName } }
+                            }
+                        };
+                    }
+
+                    function getOptionsFor30Days(labelName) {
+                        return {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top' },
+                                tooltip: {
+                                    callbacks: {
+                                        title: function(context) {
+                                            const timestamp = context[0].parsed.x;
+                                            return new Date(timestamp).toISOString().slice(0, 19).replace('T', ' ');
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    type: 'linear',
+                                    position: 'bottom',
+                                    title: { display: true, text: 'Timeline' },
+                                    ticks: {
+                                        maxTicksLimit: 8,
+                                        autoSkip: true,
+                                        maxRotation: 45,
+                                        minRotation: 45,
+                                        callback: function(value) {
+                                            return new Date(value).toISOString().slice(0, 10);
+                                        }
+                                    },
+                                    grid: { display: true, color: 'rgba(200, 200, 200, 0.2)' }
+                                },
+                                y: { display: true, title: { display: true, text: labelName } }
+                            }
+                        };
+                    }
+
+                    function getOptionsForLastYear(labelName) {
+                        return {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top' },
+                                tooltip: {
+                                    callbacks: {
+                                        title: function(context) {
+                                            const timestamp = context[0].parsed.x;
+                                            return new Date(timestamp).toISOString().slice(0, 19).replace('T', ' ');
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    type: 'linear',
+                                    position: 'bottom',
+                                    title: { display: true, text: 'Timeline' },
+                                    ticks: {
+                                        maxTicksLimit: 8,
+                                        autoSkip: true,
+                                        maxRotation: 45,
+                                        minRotation: 45,
+                                        callback: function(value) {
+                                            return new Date(value).toISOString().slice(0, 10);
+                                        }
+                                    },
+                                    grid: { display: true, color: 'rgba(200, 200, 200, 0.2)' }
+                                },
+                                y: { display: true, title: { display: true, text: labelName } }
+                            }
+                        };
+                    }
+
+                    function resolveChartOptions(labelName) {
+                        if (period === '7days') return getOptionsFor7Days(labelName);
+                        if (period === 'current_month') return getOptionsForCurrentMonth(labelName);
+                        if (period === 'last_year') return getOptionsForLastYear(labelName);
+                        return getOptionsFor30Days(labelName);
+                    }
+
+                    function prepareDatasets(labelName, chartData, colorHex, maData) {
+                        let rawCoordinates = formatCoordinates(data.dates, chartData);
+                        let movingAverageCoordinates = formatCoordinates(data.dates, maData);
+                        let trendCoordinates = calculate90DayTrend(data.dates, chartData);
+
+                        if (period === 'current_month') {
+                            const currentNow = new Date();
+                            const startOfMonthTime = new Date(currentNow.getFullYear(), currentNow.getMonth(), 1).setHours(0,0,0,0);
+                            
+                            const filterValid = (pts) => pts.filter(p => p && p.x >= startOfMonthTime);
+                            rawCoordinates = filterValid(rawCoordinates);
+                            movingAverageCoordinates = filterValid(movingAverageCoordinates);
                         }
 
+                        const isLastYear = (period === 'last_year');
+
+                        let datasetsArray = [{
+                            label: labelName,
+                            data: rawCoordinates,
+                            borderColor: colorHex,
+                            backgroundColor: colorHex,
+                            tension: 0.1,
+                            borderWidth: isLastYear ? 1.5 : 2,
+                            pointRadius: isLastYear ? 2 : 3,
+                            fill: false
+                        }];
+
+                        if (data.sufficient_data) {
+                            datasetsArray.push({
+                                label: 'Moving Average',
+                                data: movingAverageCoordinates,
+                                borderColor: 'rgba(150, 150, 150, 0.7)',
+                                borderWidth: isLastYear ? 1.5 : 2,
+                                tension: 0.4,
+                                pointRadius: 0,
+                                fill: false
+                            });
+                            datasetsArray.push({
+                                label: 'Trend',
+                                data: trendCoordinates,
+                                borderColor: 'rgba(255, 99, 132, 1)',
+                                borderWidth: isLastYear ? 1.5 : 2,
+                                borderDash: [5, 5],
+                                tension: 0,
+                                pointRadius: 0,
+                                fill: false
+                            });
+                        }
+
+                        return datasetsArray;
+                    }
+
+                    function renderChart(canvasId, labelName, chartData, colorHex, maData) {
+                        if (charts[canvasId]) charts[canvasId].destroy();
+                        const ctx = document.getElementById(canvasId).getContext('2d');
                         charts[canvasId] = new Chart(ctx, {
                             type: 'line',
-                            data: {
-                                labels: data.dates,
-                                datasets: [{
-                                    label: labelName,
-                                    data: chartData,
-                                    borderColor: colorHex,
-                                    backgroundColor: colorHex,
-                                    tension: 0.1,
-                                    fill: false
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    legend: { display: true, position: 'top' }
-                                },
-                                scales: {
-                                    x: { display: true, title: { display: true, text: 'Timestamp' } },
-                                    y: { display: true, title: { display: true, text: labelName } }
-                                }
-                            }
+                            data: { datasets: prepareDatasets(labelName, chartData, colorHex, maData) },
+                            options: resolveChartOptions(labelName)
                         });
                     }
 
-                    updateOrCreateChart('weightChart', 'Weight', data.weight, 'rgba(78, 115, 223, 1)');
-                    updateOrCreateChart('fatChart', 'Fat %', data.fat, 'rgba(28, 200, 138, 1)');
-                    updateOrCreateChart('visceralChart', 'Visceral', data.visceral, 'rgba(246, 194, 62, 1)');
-                    updateOrCreateChart('muscleChart', 'Muscle', data.muscle, 'rgba(231, 74, 59, 1)');
-                    updateOrCreateChart('ageChart', 'Age', data.age, 'rgba(54, 185, 204, 1)');
-                    updateOrCreateChart('basalChart', 'BMR', data.basal, 'rgba(133, 135, 150, 1)');
+                    renderChart('weightChart', 'Weight', data.weight, 'rgba(78, 115, 223, 1)', data.ma_weight);
+                    renderChart('fatChart', 'Fat %', data.fat, 'rgba(28, 200, 138, 1)', data.ma_fat);
+                    renderChart('visceralChart', 'Visceral', data.visceral, 'rgba(246, 194, 62, 1)', data.ma_visceral);
+                    renderChart('muscleChart', 'Muscle', data.muscle, 'rgba(231, 74, 59, 1)', data.ma_muscle);
+                    renderChart('ageChart', 'Age', data.age, 'rgba(54, 185, 204, 1)', data.ma_age);
+                    renderChart('basalChart', 'BMR', data.basal, 'rgba(133, 135, 150, 1)', data.ma_basal);
                 })
                 .catch(error => console.error('Error loading metrics timeline data:', error));
         }
 
-        // Carrega padrão de 30 dias ao abrir a página
         loadChartData('30days');
     </script>
 </body>
