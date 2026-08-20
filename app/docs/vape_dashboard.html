@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EUFit - Vape Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 10px; background-color: #f1f5f9; color: #333; margin: 0; box-sizing: border-box; }
+
+        .user-profile { position: absolute; top: 10px; right: 15px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #0f172a; background: #e2e8f0; padding: 5px 12px; border-radius: 20px; z-index: 10; }
+        .btn-logout { color: #dc2626; text-decoration: none; font-size: 12px; cursor: pointer; }
+
+        section { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        h3 { margin: 0 0 10px 0; font-size: 16px; color: #8b5cf6; }
+        form { display: grid; grid-template-columns: 1fr; gap: 8px; }
+        input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box; }
+        button { padding: 10px; background-color: #8b5cf6; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+
+        .filter-container { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
+        .filter-btn { padding: 6px 12px; background-color: #e2e8f0; color: #0f172a; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .filter-btn.active { background-color: #8b5cf6; color: white; }
+
+        .charts-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        .chart-card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); height: 300px; position: relative; }
+        canvas { width: 100% !important; height: 100% !important; }
+
+        .back-btn { display: block; text-align: center; background-color: #64748b; color: white; padding: 8px; text-decoration: none; border-radius: 6px; margin-top: 10px; font-size: 14px; }
+        .inspect-btn { display: block; text-align: center; background-color: #7c3aed; color: white; padding: 8px; text-decoration: none; border-radius: 6px; margin-top: 10px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="user-profile">
+        Hello, {{ current_user.name }}
+        <a href="/auth/logout" class="btn-logout">Logout</a>
+    </div>
+
+    <section>
+        <h3>New Vape Record</h3>
+        <form action="{{ url_for('dashboard.add_vape_measurement') }}" method="POST">
+            <input type="number" name="puff_count" placeholder="Puff Count" required min="0" max="5000">
+            <button type="submit">Save Record</button>
+        </form>
+        <a href="{{ url_for('dashboard.inspect_vape_history') }}" class="inspect-btn">Vape History Table</a>
+        <a href="{{ url_for('dashboard.view_dashboard') }}" class="back-btn">Back to Main Dashboard</a>
+    </section>
+
+    <div class="filter-container">
+        <button class="filter-btn" data-period="7days" onclick="loadVapeChartData('7days')">Last 7 Days</button>
+        <button class="filter-btn active" data-period="30days" onclick="loadVapeChartData('30days')">Last 30 Days</button>
+        <button class="filter-btn" data-period="current_month" onclick="loadVapeChartData('current_month')">Current Month</button>
+        <button class="filter-btn" data-period="last_year" onclick="loadVapeChartData('last_year')">Last Year</button>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-card"><canvas id="vapeChart"></canvas></div>
+    </div>
+
+    <script>
+        let vapeChartInstance = null;
+
+        function loadVapeChartData(period = '30days') {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if(btn.getAttribute('data-period') === period) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            fetch(`{{ url_for('dashboard.get_vape_metrics_timeline') }}?period=${period}`)
+                .then(response => response.json())
+                .then(data => {
+                    const formatCoordinates = (dates, values) => {
+                        if (!values || values.length === 0) return [];
+                        return values.map((val, index) => {
+                            if (val === null || val === undefined) return null;
+                            return {
+                                x: new Date(dates[index]).getTime(),
+                                y: val
+                            };
+                        }).filter(point => point !== null);
+                    };
+
+                    const rawCoords = formatCoordinates(data.dates, data.puffs);
+                    const maCoords = formatCoordinates(data.dates, data.ma_puffs);
+
+                    if (vapeChartInstance) vapeChartInstance.destroy();
+                    const ctx = document.getElementById('vapeChart').getContext('2d');
+
+                    vapeChartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            datasets: [
+                                {
+                                    label: 'Puffs',
+                                    data: rawCoords,
+                                    borderColor: 'rgba(139, 92, 246, 1)',
+                                    backgroundColor: 'rgba(139, 92, 246, 1)',
+                                    tension: 0.1,
+                                    borderWidth: 2,
+                                    pointRadius: 3,
+                                    fill: false
+                                },
+                                {
+                                    label: 'Moving Average',
+                                    data: maCoords,
+                                    borderColor: 'rgba(150, 150, 150, 0.7)',
+                                    borderWidth: 2,
+                                    tension: 0.4,
+                                    pointRadius: 0,
+                                    fill: false
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: true, position: 'top' } },
+                            scales: {
+                                x: {
+                                    type: 'linear',
+                                    position: 'bottom',
+                                    title: { display: true, text: 'Timeline' },
+                                    ticks: {
+                                        maxTicksLimit: 8,
+                                        autoSkip: true,
+                                        callback: function(value) {
+                                            return new Date(value).toISOString().slice(0, 10);
+                                        }
+                                    }
+                                },
+                                y: {
+                                    display: true,
+                                    title: { display: true, text: 'Puff Count' }
+                                }
+                            }
+                        }
+                    });
+                })
+                .catch(error => console.error('Error loading vape timeline data:', error));
+        }
+
+        loadVapeChartData('30days');
+    </script>
+</body>
+</html>

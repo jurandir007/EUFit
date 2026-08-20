@@ -58,6 +58,10 @@
                     </button>
                 </form>
             {% endif %}
+            <!-- NOVO BOTÃO DO VAPE AJUSTADO -->
+<a href="{{ url_for('dashboard.view_vape_dashboard') }}" style="display: block; background-color: #008CBA; color: white; padding: 0.6rem 1.2rem; text-decoration: none; border-radius: 6px; font-weight: 600; text-align: center; margin-top: 8px; box-sizing: border-box; width: 100%;">
+                Vape Dashboard
+            </a>
         </div>
         {% endif %}
         <form action="{{ url_for('dashboard.add_measurement') }}" method="POST">

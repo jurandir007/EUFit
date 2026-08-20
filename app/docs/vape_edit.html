@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit Vape Record</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        form { max-width: 400px; margin: auto; display: flex; flex-direction: column; gap: 10px; }
+        input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .back-btn { display: inline-block; margin-bottom: 20px; background-color: #555; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <a href="{{ url_for('dashboard.inspect_vape_history') }}" class="back-btn">← Back to Vape History</a>
+    
+    <h2 style="text-align: center;">Edit Vape Record</h2>
+    
+    <form method="POST">
+        <label>Timestamp: {{ record.recorded_at }}</label>
+        <input type="number" name="puff_count" value="{{ record.puff_count }}" required min="0" max="5000">
+        <button type="submit">Update Record</button>
+    </form>
+</body>
+</html>

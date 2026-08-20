@@ -12,6 +12,10 @@ import sys
 from app.ml.m_average import calculate_moving_average
 from app.ml.TLR import calculate_trend_line
 
+#Vape
+from app.database.models import RecordVape
+from app.services.vape_service import create_vape_record, delete_vape_record, update_vape_record
+
 
 print("Módulo de models carregado na rota:", sys.modules.get('app.database.models'))
 
@@ -290,3 +294,129 @@ def get_user_metrics_timeline():
         timeline_data["tlr_basal"] = calculate_trend_line(raw_dates, timeline_data["basal"])
 
     return jsonify(timeline_data)
+    
+    
+#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# VAPE TRACKING ROUTES
+#XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+@dashboard_bp.route('/add-vape', methods=['POST'])
+@login_required
+def add_vape_measurement():
+    puff_count = request.form.get('puff_count')
+
+    if not puff_count:
+        return "Error: Puff count is required.", 400
+
+    try:
+        puff_val = int(puff_count)
+        if puff_val < 0 or puff_val > 5000:
+            return "Error: Puff count must be between 0 and 5000.", 400
+            
+        create_vape_record(user_id=current_user.id, puff_count=puff_val)
+    except ValueError:
+        return "Error: Invalid numeric value.", 400
+    except Exception as e:
+        print(f"Error saving vape record: {e}")
+        return "Internal server error.", 500
+
+    return redirect(url_for('dashboard.view_dashboard'))
+
+@dashboard_bp.route('/delete-vape', methods=['POST'])
+@login_required
+def delete_vape_measurement():
+    record_id = request.form.get('record_id')
+
+    if not record_id:
+        return "Error: Record ID is required.", 400
+
+    try:
+        delete_vape_record(record_id=int(record_id), user_id=current_user.id)
+    except Exception as e:
+        print(f"Error deleting vape record: {e}")
+
+    return redirect(url_for('dashboard.inspect_history'))
+
+@dashboard_bp.route('/edit-vape/<int:record_id>', methods=['POST'])
+@login_required
+def edit_vape_measurement(record_id):
+    puff_count = request.form.get('puff_count')
+    
+    if puff_count:
+        try:
+            update_vape_record(record_id=record_id, user_id=current_user.id, puff_count=int(puff_count))
+        except Exception as e:
+            print(f"Error updating vape record: {e}")
+
+    return redirect(url_for('dashboard.inspect_history'))
+
+@dashboard_bp.route('/api/vape-metrics-timeline', methods=['GET'])
+@login_required
+def get_vape_metrics_timeline():
+    period = request.args.get('period', '30days')
+    now = datetime.now()
+    
+    query = RecordVape.query.filter_by(user_id=current_user.id)
+    
+    if period == '7days':
+        start_date = now - timedelta(days=7)
+        query = query.filter(RecordVape.recorded_at >= start_date)
+    elif period == '30days':
+        start_date = now - timedelta(days=30)
+        query = query.filter(RecordVape.recorded_at >= start_date)
+    elif period == 'current_month':
+        start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        query = query.filter(RecordVape.recorded_at >= start_date)
+    elif period == 'last_year':
+        start_date = now - timedelta(days=365)
+        query = query.filter(RecordVape.recorded_at >= start_date)
+
+    records = query.order_by(RecordVape.recorded_at.asc()).all()
+    
+    timeline_data = {
+        "dates": [],
+        "puffs": [],
+        "ma_puffs": []
+    }
+    
+    for record in records:
+        timeline_data["dates"].append(record.recorded_at.strftime('%Y-%m-%d %H:%M:%S'))
+        timeline_data["puffs"].append(record.puff_count)
+        
+    if len(records) > 0:
+        timeline_data["ma_puffs"] = calculate_moving_average(timeline_data["puffs"])
+
+    return jsonify(timeline_data)
+    
+    
+    
+@dashboard_bp.route('/vape-dashboard', methods=['GET'])
+@login_required
+def view_vape_dashboard():
+    return render_template('vape_dashboard.html')
+    
+    
+    
+@dashboard_bp.route('/inspect-vape', methods=['GET'])
+@login_required
+def inspect_vape_history():
+    records = RecordVape.query.filter_by(user_id=current_user.id).order_by(RecordVape.recorded_at.desc()).all()
+    is_dummy_user = (current_user.id == 3)
+    return render_template('vape_inspect.html', history=records, current_user=current_user, is_dummy_user=is_dummy_user)
+
+@dashboard_bp.route('/edit-vape-page/<int:record_id>', methods=['GET', 'POST'])
+@login_required
+def edit_vape_page(record_id):
+    record = RecordVape.query.filter_by(id=record_id, user_id=current_user.id).first_or_404()
+
+    if request.method == 'POST':
+        puff_count = request.form.get('puff_count')
+        if puff_count:
+            try:
+                record.puff_count = int(puff_count)
+                db.session.commit()
+                return redirect(url_for('dashboard.inspect_vape_history'))
+            except ValueError:
+                return "Error: Invalid numeric value.", 400
+
+    return render_template('vape_edit.html', record=record)
