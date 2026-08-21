@@ -420,3 +420,206 @@ def edit_vape_page(record_id):
                 return "Error: Invalid numeric value.", 400
 
     return render_template('vape_edit.html', record=record)
+    
+    
+    
+@dashboard_bp.route('/api/vape/consumo-diario-previsao')
+@login_required
+def get_vape_daily_avg_with_forecast():
+    """
+    Retorna média diária + previsões para 30, 90 e 120 dias
+    - Média atual: soma dos últimos 30 dias / 30
+    - Previsões: regressão linear com TODOS os dados históricos
+    """
+    from datetime import datetime, timedelta
+    from sklearn.linear_model import LinearRegression
+    import numpy as np
+    import logging
+    
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    
+    user_id = current_user.id
+    period = request.args.get('period', '30days')
+    
+    # ==========================================
+    # 1. BUSCAR TODOS OS DADOS HISTÓRICOS (para o ML)
+    # ==========================================
+    all_records = RecordVape.query.filter_by(user_id=user_id)\
+        .order_by(RecordVape.recorded_at.asc()).all()
+    
+    logger.info(f"📊 Total de registros históricos: {len(all_records)}")
+    
+    if len(all_records) < 2:
+        return jsonify({
+            'error': 'Sem dados históricos suficientes para previsão',
+            'current_avg': 0,
+            'forecast': {},
+            'forecast_dates': {}
+        }), 200
+    
+    # ==========================================
+    # 2. CALCULAR MÉDIAS DIÁRIAS REAIS (TODOS OS DADOS)
+    # Fórmula: média = puffs / dias_desde_ultimo_registro
+    # USANDO REGISTROS INDIVIDUAIS (COM HORAS)
+    # ==========================================
+    
+    daily_avg_real = []
+    dates_for_chart = []
+    
+    for i, record in enumerate(all_records):
+        if i == 0:
+            # Primeiro registro: ignoramos (não temos referência anterior)
+            continue
+        else:
+            date_obj = record.recorded_at
+            total_puffs = record.puff_count
+            
+            # Calcular gap REAL em dias (com horas!)
+            prev_record = all_records[i-1]
+            time_diff = (date_obj - prev_record.recorded_at).total_seconds()
+            days_diff = time_diff / (24 * 3600)
+            
+            if days_diff < 0.0001:
+                days_diff = 0.0001
+            
+            daily_avg = total_puffs / days_diff
+            daily_avg_real.append(round(daily_avg, 2))
+            dates_for_chart.append(date_obj.strftime('%Y-%m-%d %H:%M'))
+            
+            logger.info(f"📅 {date_obj.strftime('%Y-%m-%d %H:%M')}: {total_puffs} puffs em {days_diff:.4f} dias → média {daily_avg:.2f}/dia")
+    # ==========================================
+    # 3. MÉDIA ATUAL (APENAS ÚLTIMOS 30 DIAS)
+    # ==========================================
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    
+    records_30dias = RecordVape.query.filter_by(user_id=user_id)\
+        .filter(RecordVape.recorded_at >= thirty_days_ago).all()
+    
+    if records_30dias:
+        total_puffs_30dias = sum(r.puff_count for r in records_30dias)
+        current_avg = round(total_puffs_30dias / 30, 2)
+        logger.info(f"📊 Média atual (30 dias): {total_puffs_30dias} / 30 = {current_avg:.2f}/dia")
+    else:
+        # Fallback: usar o último valor do histórico
+        current_avg = daily_avg_real[-1] if daily_avg_real else 0
+        logger.info(f"📊 Média atual (fallback): {current_avg}")
+    
+    # ==========================================
+    # 4. PREVISÕES COM ML (USANDO DATAS REAIS)
+    # ==========================================
+    forecast_results = {}
+    forecast_dates = {}
+    
+    logger.info("🧮 Treinando modelo de regressão linear com datas reais...")
+    
+    # ==========================================
+    # 4. PREVISÕES COM ML (USANDO DATAS REAIS + SUAVIZAÇÃO)
+    # ==========================================
+    forecast_results = {}
+    forecast_dates = {}
+    
+    logger.info("🧮 Treinando modelo de regressão linear com datas reais...")
+    
+    # Pegar o primeiro registro como referência (timestamp 0)
+    first_record = all_records[0]
+    first_date = first_record.recorded_at
+    
+    # Construir X e Y brutos
+    X = []
+    y_raw = []
+    
+    for i, record in enumerate(all_records):
+        if i == 0:
+            continue
+        else:
+            # X = data real em dias desde o primeiro registro
+            time_diff = (record.recorded_at - first_date).total_seconds()
+            days_from_start = time_diff / (24 * 3600)
+            X.append(round(days_from_start, 4))
+            
+            # Y = média real (consumo / gap)
+            prev_record = all_records[i-1]
+            gap = (record.recorded_at - prev_record.recorded_at).total_seconds() / (24 * 3600)
+            if gap < 0.0001:
+                gap = 0.0001
+            daily_avg = record.puff_count / gap
+            y_raw.append(round(daily_avg, 2))
+    
+    logger.info(f"📊 Calculados {len(y_raw)} pontos")
+    
+    # ==========================================
+    # SUAVIZAÇÃO: se y > 2000, substituir pela média dos vizinhos
+    # ==========================================
+    y_suavizado = y_raw.copy()
+    
+    for i in range(len(y_suavizado)):
+        if y_suavizado[i] > 2000:
+            # Calcular média com vizinhos (se existirem)
+            vizinhos = []
+            if i > 0:
+                vizinhos.append(y_raw[i-1])
+            if i < len(y_raw) - 1:
+                vizinhos.append(y_raw[i+1])
+            
+            if vizinhos:
+                media_vizinhos = sum(vizinhos) / len(vizinhos)
+                y_suavizado[i] = round(media_vizinhos, 2)
+                logger.info(f"🔄 Suavizando ponto {i}: {y_raw[i]:.2f} → {y_suavizado[i]:.2f} (média dos vizinhos)")
+            else:
+                # Se não tiver vizinhos, mantém o valor
+                y_suavizado[i] = y_raw[i]
+    
+    logger.info(f"📊 Usando {len(X)} pontos com datas reais")
+    logger.info(f"📅 Primeira data (X): {X[0]:.4f} dias")
+    logger.info(f"📅 Última data (X): {X[-1]:.4f} dias")
+    
+    # Treinar o modelo com datas reais
+    X_array = np.array(X).reshape(-1, 1)
+    y_array = np.array(y_suavizado)
+    
+    model = LinearRegression()
+    model.fit(X_array, y_array)
+    
+    slope = model.coef_[0]
+    intercept = model.intercept_
+    
+    logger.info(f"📐 Inclinação: {slope:.4f} puffs/dia")
+    logger.info(f"📐 Intercepto: {intercept:.4f}")
+    
+    # Última data registrada
+    last_date_days = X[-1] if X else 0
+    logger.info(f"⏰ Última data: {last_date_days:.4f} dias desde o início")
+    
+    forecast_days = [30, 90, 120]
+    now = datetime.now()
+    
+    for days in forecast_days:
+        # Data futura em dias desde o início
+        future_days = last_date_days + days
+        pred = model.predict([[future_days]])[0]
+        forecast_results[days] = round(max(5.0, pred), 2)
+        forecast_dates[days] = (now + timedelta(days=days)).strftime('%Y-%m-%d')
+        
+        logger.info(f"🔮 Previsão para {days} dias (data {future_days:.2f}): {forecast_results[days]:.2f} puffs/dia")
+    # ==========================================
+    # 5. RESPOSTA
+    # ==========================================
+    response = {
+        'dates': dates_for_chart,
+        'daily_avg': daily_avg_real,
+        'current_avg': current_avg,
+        'forecast': forecast_results,
+        'forecast_dates': forecast_dates,
+        'debug': {
+            'total_records_historicos': len(all_records),
+            'total_days_historicos': len(daily_avg_real),
+            'records_30dias': len(records_30dias),
+            'total_puffs_30dias': total_puffs_30dias if records_30dias else 0,
+            'model_trained': True,
+            'slope': round(slope, 4),
+            'intercept': round(intercept, 4)
+        }
+    }
+    
+    return jsonify(response)
