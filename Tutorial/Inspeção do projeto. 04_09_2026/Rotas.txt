@@ -1,0 +1,179 @@
+Relatório Técnico: Rotas de Edição e Vape (routes.py)
+1. Visão Geral
+O arquivo routes.py contém todas as rotas do Blueprint dashboard, abrangendo:
+
+Rotas principais: Dashboard, histórico, CRUD de métricas corporais
+
+Rotas de edição: Com suporte a path para timestamps complexos
+
+Módulo Vape: Rotas dedicadas para CRUD de registros de vape
+
+APIs: Endpoints para gráficos (métricas corporais e vape)
+
+2. Rota de Edição Principal
+2.1 Assinatura
+python
+@dashboard_bp.route('/edit/<path:timestamp>', methods=['GET', 'POST'])
+@login_required
+def edit_measurement(timestamp):
+2.2 Características Técnicas
+Característica	Detalhe
+Conversor	<path:timestamp> - Permite capturar timestamps com espaços e pontos
+Métodos	GET (exibir formulário) e POST (atualizar)
+Autenticação	@login_required - Apenas usuários logados
+Isolamento	Filtro por fk_user_id=current_user.id
+Timestamp	Formato '%Y-%m-%d %H:%M:%S.%f'
+2.3 Função safe_float (Inner Function)
+python
+def safe_float(value):
+    return float(value) if value and value.strip() != '' else None
+Propósito: Converter strings do formulário para float, tratando campos vazios como None.
+
+2.4 Atualização de Campos
+python
+record.peso = safe_float(request.form.get('peso'))
+record.gordura = safe_float(request.form.get('gordura'))
+record.musculo = safe_float(request.form.get('musculo'))
+record.basal = safe_float(request.form.get('basal'))
+record.idade = safe_float(request.form.get('idade'))
+record.viceral = safe_float(request.form.get('viceral'))
+
+db.session.commit()
+Observação: Nomes dos campos no formulário devem corresponder aos nomes das colunas.
+
+2.5 Redirecionamento
+Método	Redirecionamento
+POST	redirect(url_for('dashboard.inspect_history'))
+GET	render_template('edit.html', record=record)
+3. Rotas do Módulo Vape
+3.1 Edição de Registro Vape (POST)
+python
+@dashboard_bp.route('/edit-vape/<int:record_id>', methods=['POST'])
+@login_required
+def edit_vape_measurement(record_id):
+    puff_count = request.form.get('puff_count')
+    if puff_count:
+        update_vape_record(record_id=record_id, user_id=current_user.id, puff_count=int(puff_count))
+    return redirect(url_for('dashboard.inspect_history'))
+Características:
+
+Método POST apenas
+
+record_id como inteiro (conversor <int:)
+
+Redireciona para histórico
+
+3.2 Página de Edição Vape (GET + POST)
+python
+@dashboard_bp.route('/edit-vape-page/<int:record_id>', methods=['GET', 'POST'])
+@login_required
+def edit_vape_page(record_id):
+    record = RecordVape.query.filter_by(id=record_id, user_id=current_user.id).first_or_404()
+
+    if request.method == 'POST':
+        puff_count = request.form.get('puff_count')
+        if puff_count:
+            try:
+                record.puff_count = int(puff_count)
+                db.session.commit()
+                return redirect(url_for('dashboard.inspect_vape_history'))
+            except ValueError:
+                return "Error: Invalid numeric value.", 400
+
+    return render_template('vape_edit.html', record=record)
+Características:
+
+GET: Exibe formulário com dados atuais
+
+POST: Atualiza e redireciona
+
+first_or_404(): Retorna 404 se registro não encontrado
+
+Validação: ValueError para conversão de inteiro
+
+3.3 API de Previsões Vape
+python
+@dashboard_bp.route('/api/vape/consumo-diario-previsao')
+@login_required
+def get_vape_daily_avg_with_forecast():
+Propósito: Retorna dados para o gráfico de barras do dashboard vape.
+
+Dados Retornados:
+
+Campo	Tipo	Descrição
+dates	List[str]	Datas formatadas
+daily_avg	List[float]	Médias diárias calculadas
+current_avg	float	Média dos últimos 30 dias
+forecast	Dict[int, float]	Previsões para 30, 90, 120 dias
+forecast_dates	Dict[int, str]	Datas das previsões
+debug	Dict	Informações de depuração
+Cálculo das Médias:
+
+text
+daily_avg = puff_count / dias_desde_ultimo_registro
+Modelo de Regressão:
+
+Features: Dias desde o primeiro registro (X)
+
+Target: Média diária (Y)
+
+Suavização: Outliers > 2000 são substituídos pela média dos vizinhos
+
+3.4 API de Timeline Vape
+python
+@dashboard_bp.route('/api/vape-metrics-timeline', methods=['GET'])
+@login_required
+def get_vape_metrics_timeline():
+Propósito: Retorna série temporal para gráfico de linha com média móvel.
+
+Filtros:
+
+Período	Valor
+7 dias	'7days'
+30 dias	'30days' (padrão)
+Mês atual	'current_month'
+Último ano	'last_year'
+4. Mapeamento de Rotas
+4.1 Rotas de Métricas Corporais
+Rota	Método	Propósito
+/edit/<path:timestamp>	GET/POST	Editar registro
+/api/user-metrics-timeline	GET	Dados para gráficos
+4.2 Rotas Vape
+Rota	Método	Propósito
+/vape-dashboard	GET	Dashboard vape
+/inspect-vape	GET	Histórico vape
+/add-vape	POST	Novo registro
+/delete-vape	POST	Excluir registro
+/edit-vape/<int:record_id>	POST	Editar registro
+/edit-vape-page/<int:record_id>	GET/POST	Página de edição
+/api/vape-metrics-timeline	GET	Timeline JSON
+/api/vape/consumo-diario-previsao	GET	Previsões JSON
+5. Comparação: Edição de Métricas vs Vape
+Critério	Métricas (Eu2016)	Vape (RecordVape)
+Timestamp	<path:timestamp> com formato complexo	<int:record_id>
+Métodos	GET + POST	GET + POST (separados)
+Validação	safe_float()	int() + try/except
+Template	edit.html	vape_edit.html
+Redirecionamento	inspect_history	inspect_vape_history
+6. Dependências
+python
+from flask import Blueprint, render_template, request, redirect, url_for, jsonify
+from flask_login import login_required, current_user
+from datetime import datetime, timedelta
+from app.database.models import Eu2016, User, RecordVape
+from app.modules.core.database import db
+from app.services.vape_service import create_vape_record, delete_vape_record, update_vape_record
+from app.ml.m_average import calculate_moving_average
+from app.ml.TLR import calculate_trend_line
+from sklearn.linear_model import LinearRegression
+import numpy as np
+7. Resumo Técnico
+Aspecto	Detalhe
+Arquitetura	Blueprint dashboard com rotas agrupadas
+Autenticação	@login_required em todas as rotas
+Isolamento	Filtro por current_user.id
+Validação	safe_float() para métricas, int() para vape
+Formato de Dados	JSON para APIs, HTML para views
+Módulo Vape	Totalmente integrado ao mesmo Blueprint
+Status	✅ Funcional e operacional
+

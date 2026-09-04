@@ -1,0 +1,232 @@
+##https://chat.deepseek.com/share/a01rvc6gqabw5ethrm
+## 📋 **Relatório Técnico - Rotação de Credenciais Neon e Google**
+
+**Projeto:** EUFit  
+**Data:** 04 de Setembro de 2026  
+**Responsável:** Jurandir  
+**Status:** ✅ **CONCLUÍDO**
+
+---
+
+## 1. 📌 **Objetivo**
+
+Realizar a rotação completa das credenciais de acesso ao banco de dados **Neon** e das chaves **Google OAuth**, removendo-as do código fonte e armazenando-as em local seguro fora do projeto.
+
+---
+
+## 2. 🔍 **Motivação**
+
+As credenciais estavam expostas no arquivo `neon.env` dentro do projeto, representando riscos de segurança:
+
+| Risco | Descrição |
+|-------|-----------|
+| 🔴 **Exposição no Git** | Arquivo versionado, podendo ser acessado por terceiros |
+| 🔴 **Vazamento de senhas** | Senha do banco exposta em texto plano |
+| 🔴 **Chave Google exposta** | Client Secret acessível no código |
+
+---
+
+## 3. 🛠️ **Ações Realizadas**
+
+### 3.1 Google OAuth
+
+| Etapa | Ação |
+|-------|------|
+| 1 | Acesso ao Google Cloud Console |
+| 2 | Criação de **nova credencial OAuth 2.0** (Aplicativo Web) |
+| 3 | Download do arquivo `credentials.json` |
+| 4 | Armazenamento em `/opt/Keys/Google/credentials.json` |
+| 5 | Desativação da chave antiga no console |
+| 6 | Atualização do `config.py` para ler do JSON |
+
+### 3.2 Neon Database
+
+| Etapa | Ação |
+|-------|------|
+| 1 | Acesso ao Neon Console |
+| 2 | Reset da senha do banco de dados |
+| 3 | Geração de **nova senha** (`npg_xxxxx...`) |
+| 4 | Download do arquivo com credenciais |
+| 5 | Armazenamento em `/opt/Keys/Neon/Neon.txt` |
+| 6 | Adição da `SECRET_KEY` ao arquivo |
+
+---
+
+## 4. 📁 **Estrutura de Arquivos**
+
+### 4.1 Nova Estrutura de Credenciais
+
+```
+/opt/Keys/
+├── Google/
+│   └── credentials.json          # OAuth 2.0 (JSON)
+└── Neon/
+    └── Neon.txt                   # Database + SECRET_KEY (ENV)
+```
+
+### 4.2 Conteúdo dos Arquivos
+
+**`/opt/Keys/Google/credentials.json`**
+```json
+{
+  "web": {
+    "client_id": "530929747225-...",
+    "client_secret": "GOCSPX-...",
+    "redirect_uris": ["http://localhost:5000/auth/google/callback"]
+  }
+}
+```
+
+**`/opt/Keys/Neon/Neon.txt`**
+```env
+DATABASE_URL_Neon=postgresql://neondb_owner:nova_senha@host/db?sslmode=require
+SECRET_KEY=c653b9e8247fc82abe82fef529beed591c28d10197bbe45a8b9ceeda94ab055e
+SQLALCHEMY_DATABASE_URI=postgresql://neondb_owner:nova_senha@host/db?sslmode=require
+```
+
+---
+
+## 5. 🔧 **Atualizações no Código**
+
+### 5.1 `app/modules/core/config.py`
+
+**Novas funções adicionadas:**
+
+```python
+def load_google_credentials():
+    """Carrega credenciais do Google do JSON"""
+    # Lê de /opt/Keys/Google/credentials.json
+
+def load_neon_credentials():
+    """Carrega credenciais do Neon do .txt"""
+    # Lê de /opt/Keys/Neon/Neon.txt
+
+def load_local_env_fallback():
+    """Fallback para neon.env local"""
+    # Caso as credenciais principais não existam
+```
+
+### 5.2 Hierarquia de Carregamento
+
+| Ordem | Fonte | Local |
+|-------|-------|-------|
+| 1️⃣ | **Arquivos seguros** | `/opt/Keys/` |
+| 2️⃣ | **Fallback local** | `neon.env` |
+| 3️⃣ | **Fallback final** | `os.getenv()` |
+
+---
+
+## 6. 🔐 **Medidas de Segurança**
+
+| Medida | Detalhe |
+|--------|---------|
+| ✅ **Permissões** | `chmod 600` (apenas dono lê/escreve) |
+| ✅ **Dono** | `chown jurandir:jurandir` |
+| ✅ **Fora do Git** | Credenciais removidas do `.env` e do histórico |
+| ✅ **Fallback seguro** | Código não usa credenciais hardcoded |
+| ✅ **Rotação** | Chave Google antiga DESATIVADA |
+
+---
+
+## 7. 🧪 **Testes Realizados**
+
+| Teste | Comando | Resultado |
+|-------|---------|-----------|
+| Google Credentials | `load_google_credentials()` | ✅ OK |
+| Neon Database | `load_neon_credentials()` | ✅ OK |
+| SECRET_KEY | `os.getenv('SECRET_KEY')` | ✅ OK |
+| Config Completa | `from config import Config` | ✅ OK |
+| Permissões | `ls -la /opt/Keys/` | ✅ 600 |
+
+### 7.1 Saída dos Testes
+
+```
+✅ Google credentials loaded from: /opt/Keys/Google/credentials.json
+✅ Neon credentials loaded from: /opt/Keys/Neon/Neon.txt
+✅ Database URL: True
+✅ Secret Key: True
+✅ Google Client ID: True
+✅ Google Client Secret: True
+🚀 Sistema pronto para rodar!
+```
+
+---
+
+## 8. 📋 **Checklist Final**
+
+| Item | Status |
+|------|--------|
+| ✅ Nova credencial Google criada | **CONCLUÍDO** |
+| ✅ Chave Google antiga desativada | **CONCLUÍDO** |
+| ✅ Nova senha Neon gerada | **CONCLUÍDO** |
+| ✅ Credenciais movidas para `/opt/Keys/` | **CONCLUÍDO** |
+| ✅ `config.py` atualizado | **CONCLUÍDO** |
+| ✅ Permissões de arquivo ajustadas | **CONCLUÍDO** |
+| ✅ `neon.env` limpo (sem credenciais) | **CONCLUÍDO** |
+| ✅ Testes de carga validados | **CONCLUÍDO** |
+
+---
+
+## 9. 📝 **Observações Finais**
+
+### 9.1 Benefícios Alcançados
+
+- 🔒 **Segurança elevada** - Credenciais fora do código fonte
+- 🧹 **Código mais limpo** - Sem credenciais hardcoded
+- 🔄 **Rotação facilitada** - Basta trocar os arquivos
+- 📁 **Organização centralizada** - Todas as chaves em `/opt/Keys/`
+
+### 9.2 Recomendações para Produção
+
+| Recomendação | Descrição |
+|--------------|-----------|
+| 🔄 **Rotação periódica** | Trocar senhas a cada 6 meses |
+| 🔐 **Limitar IPs** | Restringir acesso ao banco no Neon |
+| 📦 **Usar secrets** | Considerar AWS Secrets Manager ou HashiCorp Vault |
+| 👥 **Time** | Apenas desenvolvedores autorizados têm acesso a `/opt/Keys/` |
+| 📊 **Logs** | Monitorar tentativas de acesso não autorizado |
+
+---
+
+## 10. ✅ **Conclusão**
+
+A rotação de credenciais foi realizada com sucesso, seguindo as melhores práticas de segurança:
+
+1. ✅ **Credenciais removidas** do projeto
+2. ✅ **Novas chaves geradas** e armazenadas em local seguro
+3. ✅ **Permissões restritas** aplicadas
+4. ✅ **Código atualizado** para ler das novas localizações
+5. ✅ **Testes validados** com sucesso
+
+**Sistema pronto para desenvolvimento e produção.** 🚀
+
+---
+
+## 11. 📎 **Anexos**
+
+### 11.1 Comandos Utilizados
+
+```bash
+# Criar diretórios
+sudo mkdir -p /opt/Keys/Google /opt/Keys/Neon
+
+# Ajustar permissões
+sudo chown jurandir:jurandir /opt/Keys/Neon/Neon.txt
+sudo chmod 600 /opt/Keys/Neon/Neon.txt
+
+# Testar
+python -c "from app.modules.core.config import Config; print('✅ OK')"
+```
+
+### 11.2 Arquivos Alterados
+
+- `app/modules/core/config.py`
+- `neon.env` (limpo)
+- `/opt/Keys/Google/credentials.json` (novo)
+- `/opt/Keys/Neon/Neon.txt` (novo)
+
+---
+
+**Relatório Gerado em:** 04/09/2026  
+**Versão:** 1.0  
+**Status:** ✅ **ROTAÇÃO CONCLUÍDA COM SUCESSO**

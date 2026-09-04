@@ -1,0 +1,265 @@
+https://chat.deepseek.com/share/tmdbbholsg6izkrubv
+# Relatório Técnico: Configuração e Substituição de Chave SSH para GitHub - Projeto EUFit
+
+**Data:** 04 de Setembro de 2026  
+**Sistema:** EUFit (Flask/Gunicorn/Nginx)  
+**Ambientes:** Desenvolvimento Local (Lenovo) e Produção (GCE)  
+**Objetivo:** Gerar e configurar novo par de chaves SSH para acesso ao GitHub
+
+---
+
+## 1. Resumo Executivo
+
+Foi realizada a substituição completa do par de chaves SSH utilizadas para autenticação com o GitHub, tanto no ambiente local de desenvolvimento quanto no servidor de produção (Google Compute Engine). A nova chave foi armazenada em um local seguro fora do diretório do projeto (`/opt/Keys/Git/`), seguindo as melhores práticas de segurança.
+
+---
+
+## 2. Estado Inicial
+
+### 2.1 Ambiente Local
+- Chave antiga presente em `~/PycharmProjects/EUFit/gitkey`
+- Nenhuma chave cadastrada no GitHub
+- Conexão com GitHub falhando: `Permission denied (publickey)`
+
+### 2.2 Ambiente Servidor (GCE)
+- Chave antiga presente em `~/EUFit/gitkey`
+- Nenhuma chave cadastrada no GitHub
+- Acesso via SSH pelo Console Google Cloud
+
+---
+
+## 3. Procedimentos Realizados
+
+### 3.1 Geração da Nova Chave (Local)
+
+```bash
+# Criar diretório seguro para as chaves
+sudo mkdir -p /opt/Keys/Git
+sudo chown jurandir:jurandir /opt/Keys/Git
+sudo chmod 700 /opt/Keys/Git
+
+# Gerar nova chave ED25519
+ssh-keygen -t ed25519 -C "jurandir_fisico@eufit" -f /opt/Keys/Git/gitkey -N ""
+
+# Ajustar permissões
+chmod 600 /opt/Keys/Git/gitkey
+chmod 644 /opt/Keys/Git/gitkey.pub
+```
+
+**Chave pública gerada:**
+```
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOWB+cpqBe4H/RsZhFo660HmoYIDQCmhS5jQKQdq/N5j jurandir_fisico@eufit
+```
+
+### 3.2 Cadastro no GitHub
+
+1. Acessado: https://github.com/settings/keys
+2. Adicionada nova chave SSH:
+   - **Title:** `EUFit - Lenovo (jurandir_fisico)`
+   - **Key:** Chave pública acima
+3. Conexão testada com sucesso:
+   ```bash
+   ssh -T git@github.com
+   # Resposta: Hi jurandir007! You've successfully authenticated...
+   ```
+
+### 3.3 Configuração do SSH Local
+
+```bash
+# Criar arquivo de configuração SSH
+cat > ~/.ssh/config << 'EOF'
+Host github.com
+    IdentityFile /opt/Keys/Git/gitkey
+    User git
+EOF
+
+chmod 600 ~/.ssh/config
+
+# Adicionar ao ssh-agent
+eval "$(ssh-agent -s)"
+ssh-add /opt/Keys/Git/gitkey
+```
+
+### 3.4 Transferência para o Servidor GCE
+
+**Desafio:** O comando `gcloud` não estava instalado localmente, e o `scp` falhou devido a problemas de autenticação.
+
+**Solução adotada:** Transferência manual via janela SSH do Console Google Cloud.
+
+#### 3.4.1 Criar diretório no servidor
+
+```bash
+sudo mkdir -p /opt/Keys/Git
+sudo chown jurandir_fisico:jurandir_fisico /opt/Keys/Git
+sudo chmod 700 /opt/Keys/Git
+```
+
+#### 3.4.2 Criar arquivos de chave manualmente
+
+**Chave privada:**
+```bash
+cat > /opt/Keys/Git/gitkey << 'EOF'
+-----BEGIN OPENSSH PRIVATE KEY-----
+[conteúdo da chave privada]
+-----END OPENSSH PRIVATE KEY-----
+EOF
+```
+
+**Chave pública:**
+```bash
+cat > /opt/Keys/Git/gitkey.pub << 'EOF'
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOWB+cpqBe4H/RsZhFo660HmoYIDQCmhS5jQKQdq/N5j jurandir_fisico@eufit
+EOF
+```
+
+#### 3.4.3 Ajustar permissões e configurar
+
+```bash
+chmod 600 /opt/Keys/Git/gitkey
+chmod 644 /opt/Keys/Git/gitkey.pub
+
+# Configurar SSH
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+
+cat > ~/.ssh/config << 'EOF'
+Host github.com
+    IdentityFile /opt/Keys/Git/gitkey
+    User git
+EOF
+
+chmod 600 ~/.ssh/config
+```
+
+#### 3.4.4 Validar no servidor
+
+```bash
+ssh -T git@github.com
+# Resposta: Hi jurandir007! You've successfully authenticated...
+```
+
+### 3.5 Atualização do Remote Git
+
+**Local:**
+```bash
+cd ~/PycharmProjects/EUFit
+git remote set-url origin git@github.com:jurandir007/EUFit.git
+```
+
+**Servidor:**
+```bash
+cd ~/EUFit
+git remote set-url origin git@github.com:jurandir007/EUFit.git
+```
+
+---
+
+## 4. Configuração Final
+
+### 4.1 Estrutura de Diretórios
+
+```
+/opt/
+└── Keys/
+    └── Git/
+        ├── gitkey          # Chave privada (600)
+        └── gitkey.pub      # Chave pública (644)
+```
+
+### 4.2 Arquivo ~/.ssh/config
+
+```
+Host github.com
+    IdentityFile /opt/Keys/Git/gitkey
+    User git
+```
+
+### 4.3 Remote Git
+
+| Ambiente | URL |
+|----------|-----|
+| Local | `git@github.com:jurandir007/EUFit.git` |
+| Servidor | `git@github.com:jurandir007/EUFit.git` |
+
+---
+
+## 5. Matriz de Verificação
+
+| Item | Local | Servidor | Status |
+|------|-------|----------|--------|
+| Chave privada em `/opt/Keys/Git/` | ✅ | ✅ | OK |
+| Chave pública em `/opt/Keys/Git/` | ✅ | ✅ | OK |
+| Permissões corretas (600/644) | ✅ | ✅ | OK |
+| Chave no ssh-agent | ✅ | ✅ | OK |
+| Configuração SSH (`~/.ssh/config`) | ✅ | ✅ | OK |
+| Chave cadastrada no GitHub | ✅ | ✅ | OK |
+| Conexão testada (`ssh -T`) | ✅ | ✅ | OK |
+| Remote Git configurado | ✅ | ✅ | OK |
+| Git fetch funcionando | ✅ | ✅ | OK |
+
+---
+
+## 6. Testes Realizados
+
+### 6.1 Teste de Conexão SSH
+```bash
+ssh -T git@github.com
+# ✅ Hi jurandir007! You've successfully authenticated...
+```
+
+### 6.2 Teste de Operações Git
+```bash
+git fetch origin
+# ✅ Sem erros
+git status
+# ✅ On branch main... up to date
+```
+
+---
+
+## 7. Lições Aprendidas
+
+### 7.1 Desafios Enfrentados
+
+1. **`gcloud` não instalado localmente** → Solução: Transferência manual via Console SSH
+2. **`scp` com problemas de autenticação** → Solução: Criação manual de arquivos
+3. **Chave não cadastrada no GitHub** → Resolvido: Adicionada manualmente
+
+### 7.2 Boas Práticas Aplicadas
+
+- ✅ Chaves armazenadas fora do diretório do projeto (`/opt/Keys/Git/`)
+- ✅ Permissões restritas (600 para privada, 644 para pública)
+- ✅ Uso de algoritmo ED25519 (mais seguro e moderno)
+- ✅ Configuração SSH centralizada via `~/.ssh/config`
+- ✅ Mesmo par de chaves utilizado em local e servidor
+- ✅ Backup da chave antiga realizado
+
+---
+
+## 8. Recomendações Futuras
+
+1. **Instalar `gcloud` localmente** para facilitar futuras transferências de arquivos:
+   ```bash
+   sudo snap install google-cloud-cli
+   gcloud init
+   ```
+
+2. **Documentar** a localização das chaves no arquivo `Arquitetura.txt` do projeto:
+   ```
+   Chaves SSH: /opt/Keys/Git/gitkey (privada) e gitkey.pub (pública)
+   ```
+
+3. **Rotação periódica** de chaves (recomendado: a cada 12 meses)
+
+---
+
+## 9. Conclusão
+
+A configuração do novo par de chaves SSH foi concluída com sucesso em ambos os ambientes. O acesso ao GitHub está totalmente funcional, permitindo operações de `git push`, `git pull` e `git fetch` tanto no ambiente local de desenvolvimento quanto no servidor de produção GCE.
+
+**Status Final:** ✅ **OPERACIONAL**
+
+---
+
+**Relatório elaborado por:** ChatGPT (Assistente de IA)  
+**Data:** 04 de Setembro de 2026

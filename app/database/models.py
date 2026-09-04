@@ -1,4 +1,6 @@
 # app/database/models.py
+#https://chat.deepseek.com/share/3d22sunus1b9kev5m2
+
 from app.modules.core.database import db
 from flask_login import UserMixin
 from sqlalchemy import Computed
@@ -14,7 +16,7 @@ class Eu2016(db.Model):
     basal = db.Column('basal', db.Float)
     idade = db.Column('Idade', db.Float)
     viceral = db.Column('viceral', db.Float)
-    
+
     # Declarada como coluna gerada/computada pelo servidor (banco de dados)
     str_comb = db.Column('str_comb', db.String(10), Computed('PERSISTED'))
     

@@ -1,4 +1,6 @@
 #app/ml/predictor.py
+#https://chat.deepseek.com/share/r29l7jxzywmikc4sp2
+
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from app.modules.core.database import db

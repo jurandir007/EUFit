@@ -1,0 +1,206 @@
+https://chat.deepseek.com/share/r29l7jxzywmikc4sp2
+Relatório Técnico: predictor.py
+1. Visão Geral
+O arquivo predictor.py implementa o serviço de Machine Learning do projeto EUFit, responsável por:
+
+Treinar modelos de regressão linear baseados no histórico do usuário
+
+Prever métricas corporais faltantes (músculo, idade, basal) a partir de dados conhecidos (peso, gordura, visceral)
+
+Atualizar registros no banco de dados com as predições
+
+Executar predições em memória (on-the-fly) durante o preenchimento de formulários
+
+2. Classe: FitMLService
+2.1 Construtor
+python
+def __init__(self, user_id):
+    self.user_id = user_id
+    self.df_ml_data = None
+    self.trained_models = {}
+Atributo	Tipo	Propósito
+user_id	int	ID do usuário para isolamento de dados
+df_ml_data	DataFrame	Dados históricos do usuário em formato pandas
+trained_models	dict	Dicionário com modelos treinados por métrica
+2.2 Método: prepare_ml_data()
+python
+def prepare_ml_data(self):
+    records = Eu2016.query.filter_by(fk_user_id=self.user_id).all()
+    # ... converte para DataFrame
+    self.df_ml_data = pd.DataFrame(data)
+Propósito: Carregar os dados históricos do usuário do banco de dados para um DataFrame do pandas.
+
+Comportamento:
+
+Filtra registros pelo fk_user_id
+
+Extrai as colunas: peso, gordura, viceral, musculo, idade, basal
+
+Armazena em self.df_ml_data
+
+Retorna DataFrame vazio se não houver registros
+
+2.3 Método: train_models()
+python
+def train_models(self):
+    X_cols = ['peso', 'gordura', 'viceral']
+    y_cols = ['musculo', 'idade', 'basal']
+    
+    training_df = self.df_ml_data[X_cols + y_cols].dropna()
+    X = training_df[X_cols]
+    
+    for target in y_cols:
+        model = LinearRegression()
+        model.fit(X, training_df[target])
+        self.trained_models[target] = model
+Propósito: Treinar três modelos de regressão linear independentes.
+
+Variáveis:
+
+Tipo	Colunas	Descrição
+X (Features)	peso, gordura, viceral	Dados de entrada obrigatórios
+Y (Targets)	musculo, idade, basal	Métricas a serem previstas
+Comportamento:
+
+Remove registros com valores nulos (dropna())
+
+Treina um modelo para cada métrica alvo
+
+Armazena modelos em self.trained_models
+
+Retorna True se treinado com sucesso
+
+2.4 Método: predict_and_update_db_record(record_id)
+python
+def predict_and_update_db_record(self, record_id):
+    record = Eu2016.query.get(record_id)
+    
+    # Verificação de segurança: não sobrescrever dados existentes
+    if record.musculo is not None:
+        return False
+    
+    # Realiza predição e atualiza o registro
+    record.musculo = predictions['musculo']
+    record.idade = predictions['idade']
+    record.basal = predictions['basal']
+    db.session.commit()
+Propósito: Prever e atualizar um registro já existente no banco de dados.
+
+Fluxo:
+
+Busca o registro pelo ID
+
+Verifica se o registro pertence ao usuário
+
+Verifica se musculo já está preenchido (evita sobrescrita)
+
+Treina modelos se necessário
+
+Aplica predição
+
+Salva no banco
+
+2.5 Método: predict_on_the_fly(peso, gordura, viceral)
+python
+def predict_on_the_fly(self, peso, gordura, viceral):
+    # Trava de segurança: exige ao menos 5 registros
+    if len(self.df_ml_data) < 5:
+        return None
+    
+    # Predição em memória (sem tocar no banco)
+    predictions = {}
+    for target, model in self.trained_models.items():
+        pred = model.predict(input_data)[0]
+        predictions[target] = round(max(0.0, float(pred)), 2)
+    
+    return predictions
+Propósito: Prever métricas em tempo real durante o preenchimento do formulário, sem persistir no banco.
+
+Características:
+
+Cold Start Protection: Exige pelo menos 5 registros históricos
+
+Clipping: Impede valores negativos (max(0.0, pred))
+
+Idade: Arredondada para inteiro
+
+Retorno: Dicionário com musculo, idade, basal
+
+3. Fluxo de Dados
+text
++-------------------+     +-------------------+
+|   Banco de Dados  | --> |  prepare_ml_data  |
+|   (Eu2016)        |     |  (DataFrame)      |
++-------------------+     +-------------------+
+                                      |
+                                      v
++-------------------+     +-------------------+
+|  predict_on_the_fly| <-- |  train_models     |
+|  (Formulário)     |     |  (3 modelos)      |
++-------------------+     +-------------------+
+         |
+         v
++-------------------+
+|  Predições em     |
+|  Memória          |
++-------------------+
+4. Validações de Segurança
+Validação	Método	Propósito
+Isolamento por user_id	Todos	Impede que um usuário veja dados de outro
+Mínimo de registros	predict_on_the_fly	Evita predições com dados insuficientes (< 5)
+Sobrescrita de dados	predict_and_update_db_record	Não sobrescreve dados preenchidos manualmente
+Clipping (max 0.0)	predict_on_the_fly	Impede valores negativos em métricas corporais
+Dropna	train_models	Remove registros com dados nulos antes do treino
+5. Dependências
+Pacote	Uso
+pandas	Manipulação de dados históricos
+sklearn.linear_model.LinearRegression	Regressão linear
+app.database.models.Eu2016	Modelo ORM para consultas
+app.modules.core.database.db	Sessão do banco de dados
+6. Exemplo de Uso
+6.1 Predição On-the-Fly (Formulário)
+python
+ml_service = FitMLService(user_id=current_user.id)
+predicoes = ml_service.predict_on_the_fly(
+    peso=75.0,
+    gordura=18.5,
+    viceral=7.0
+)
+
+if predicoes:
+    musculo = predicoes['musculo']   # ex: 42.5
+    idade = predicoes['idade']       # ex: 35
+    basal = predicoes['basal']       # ex: 1650.0
+6.2 Predição e Atualização (Registro Existente)
+python
+ml_service = FitMLService(user_id=3)
+ml_service.prepare_ml_data()
+if ml_service.train_models():
+    ml_service.predict_and_update_db_record(record_id=123)
+7. Limitações e Melhorias Futuras
+Limitação	Sugestão
+Modelo treinado a cada requisição	Salvar modelo em arquivo .pkl (cache)
+Apenas regressão linear	Adicionar outros algoritmos (Random Forest, XGBoost)
+Mínimo de 5 registros	Ajustar threshold conforme necessidade
+Sem validação cruzada	Adicionar train_test_split para avaliação
+Sem persistência de modelos	Implementar joblib.dump / load
+8. Status Atual
+Item	Status
+Integração com banco	✅ Funcional
+Isolamento por usuário	✅ Implementado
+Cold Start Protection	✅ Implementado
+Clipping de valores	✅ Implementado
+Testes automatizados	⚠️ Parcial (script test_ml.py)
+Cache de modelos	❌ Não implementado
+9. Resumo Técnico
+Arquitetura: Serviço isolado na pasta app/ml/
+
+Tecnologias: pandas + scikit-learn + SQLAlchemy
+
+Entradas: peso, gordura, viceral
+
+Saídas: musculo, idade, basal
+
+Método: Regressão Linear (scikit-learn)
+
+Persistência: Atualização direta via db.session.commit()

@@ -4,7 +4,10 @@ app/data_correct_10.py
 app/main.py
 app/test_dados.py
 app/database/models.py
+app/ml/TLR.py
 app/ml/__init__.py
+app/ml/m_avegare.py
+app/ml/m_average.py
 app/ml/predictor.py
 app/modules/auth/handlers.py
 app/modules/core/config.py
@@ -12,6 +15,7 @@ app/modules/core/database.py
 app/modules/core/oauth.py
 app/modules/dashboard/routes.py
 app/services/history_service.py
+app/services/vape_service.py
 eufit.egg-info/PKG-INFO
 eufit.egg-info/SOURCES.txt
 eufit.egg-info/dependency_links.txt

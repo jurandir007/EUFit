@@ -1,0 +1,109 @@
+Módulo Vape - Documentação
+Visão Geral
+O Módulo Vape é uma funcionalidade paralela ao sistema principal de métricas corporais do EUFit. Permite o registro e monitoramento do consumo diário de vape (cigarros eletrônicos) através de uma interface dedicada, com gráficos de evolução, médias móveis e previsões baseadas em regressão linear.
+
+Arquitetura
+Estrutura de Arquivos
+Arquivo	Propósito
+app/services/vape_service.py	Camada de serviço com operações CRUD para registros de vape
+app/modules/dashboard/routes.py	Rotas Flask para o módulo vape (integradas ao Blueprint dashboard)
+app/database/models.py	Modelo RecordVape (tabela record_vape)
+app/docs/vape_dashboard.html	Dashboard principal com gráfico de barras e previsões
+app/docs/vape_inspect.html	Histórico de registros com opções de edição e exclusão
+app/docs/vape_edit.html	Formulário de edição de um registro específico
+Modelo de Dados
+python
+class RecordVape(db.Model):
+    __tablename__ = 'record_vape'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    puff_count = db.Column(db.Integer, nullable=False)
+    recorded_at = db.Column(db.DateTime, default=datetime.utcnow)
+Funcionalidades
+1. Registro de Consumo
+Usuário informa a quantidade de puffs (unidades) através de um formulário
+
+Validação: valor entre 0 e 5000
+
+Registro vinculado ao user_id logado
+
+Registro automático da data/hora (recorded_at)
+
+2. Visualização Histórica
+Tabela com todos os registros do usuário
+
+Colunas: Data/Hora, Quantidade de Puffs
+
+Ações por registro: Editar e Excluir
+
+3. Dashboard com Gráficos e Previsões
+Gráfico de Barras:
+
+Média atual (últimos 30 dias)
+
+Previsão para 30, 90 e 120 dias
+
+Cards de Estatísticas:
+
+Média atual com valor numérico
+
+Previsões com tendência (📈 subindo / 📉 descendo / ➡️ estável)
+
+Percentual de variação em relação à média atual
+
+Data estimada para cada previsão
+
+Método de Cálculo das Previsões:
+
+Regressão Linear (scikit-learn) com todos os dados históricos
+
+Suavização de outliers (> 2000 puffs/dia)
+
+Cálculo da média diária real: puffs / dias_desde_ultimo_registro
+
+Modelo treinado com datas em dias desde o primeiro registro
+
+4. Rotas Disponíveis
+Rota	Método	Propósito
+/api/vape/consumo-diario-previsao	GET	Dados para o gráfico + previsões (JSON)
+/api/vape-metrics-timeline	GET	Linha do tempo com média móvel (JSON)
+/vape-dashboard	GET	Página principal do módulo vape
+/inspect-vape	GET	Histórico de registros
+/edit-vape-page/<record_id>	GET/POST	Edição de registro
+/add-vape	POST	Inserir novo registro
+/delete-vape	POST	Excluir registro
+/edit-vape/<record_id>	POST	Atualizar registro
+Integração com o Sistema Principal
+Autenticação: Todas as rotas exigem @login_required
+
+Isolamento: Registros filtrados por user_id
+
+Interface: Acesso via botão "💨 Vape Dashboard" no menu principal
+
+Modo Demo: Suporte ao usuário fictício (ID 3) para testes
+
+Dependências
+Chart.js - Renderização do gráfico de barras (CDN)
+
+scikit-learn - Regressão Linear para previsões
+
+numpy - Suporte matemático
+
+Flask-Login - Autenticação de usuários
+
+Status
+Item	Status
+Funcionalidade	✅ Ativa e operacional
+Integração	✅ Integrado ao dashboard principal
+Documentação	⏳ Pendente de atualização no resumo geral
+Testes	⚠️ Realizados localmente
+Observações Técnicas
+O módulo compartilha o mesmo Blueprint (dashboard) do sistema principal
+
+Utiliza a mesma camada de autenticação (Flask-Login + sessão)
+
+Não interfere nas tabelas de métricas corporais (Eu_2016)
+
+As previsões são calculadas em tempo real a cada requisição
+
+A lógica de previsão está diretamente na rota (não modularizada em ml/)

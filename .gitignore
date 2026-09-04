@@ -6,3 +6,12 @@ __pycache__/
 *.pyc
 
 .env
+.EUFit/
+__pycache__/
+*.pyc
+eufit.egg-info/
+backups/
+build/
+__pycache__/
+*.pyc
+*.pyo

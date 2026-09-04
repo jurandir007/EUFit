@@ -1,4 +1,5 @@
 # ./app/modules/auth/handlers.py
+#https://chat.deepseek.com/share/s8sv6ye74v4v7m3j2x
 from flask import Blueprint, url_for, session, redirect, flash
 from flask_login import login_user, logout_user # Importações necessárias
 from app.modules.core.oauth import oauth

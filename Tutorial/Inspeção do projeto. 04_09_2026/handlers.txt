@@ -1,0 +1,235 @@
+https://chat.deepseek.com/share/s8sv6ye74v4v7m3j2x
+Relatório Técnico: handlers.py (Módulo de Autenticação)
+1. Visão Geral
+O arquivo handlers.py implementa o módulo de autenticação do projeto EUFit, gerenciando:
+
+Login via Google OAuth 2.0
+
+Callback OAuth para recebimento de credenciais
+
+Logout (encerramento de sessão)
+
+Login anônimo (modo demo via cookie UUID)
+
+2. Blueprint: auth_bp
+python
+auth_bp = Blueprint('auth', __name__)
+Prefixos:
+
+Registrado em app/__init__.py com url_prefix='/auth'
+
+Rotas são acessíveis via /auth/[rota]
+
+3. Rotas de Autenticação
+3.1 Rota: /login (GET)
+python
+@auth_bp.route('/login')
+def login():
+    google = oauth.create_client('google')
+    redirect_uri = url_for('auth.authorize', _external=True)
+    return google.authorize_redirect(redirect_uri, prompt='select_account')
+Propósito: Iniciar fluxo de autenticação com Google.
+
+Parâmetros:
+
+Parâmetro	Valor	Propósito
+redirect_uri	url_for('auth.authorize', _external=True)	URL de callback após login
+prompt	'select_account'	Força a tela de escolha de conta do Google
+Fluxo:
+
+Usuário clica em "Login com Google"
+
+Redirecionado para a página de autenticação do Google
+
+Após autenticação, Google redireciona para /callback
+
+3.2 Rota: /callback (GET)
+python
+@auth_bp.route('/callback')
+def authorize():
+    google = oauth.create_client('google')
+    token = google.authorize_access_token()
+    user_info = google.parse_id_token(token, None)
+    
+    # Busca ou cria usuário no banco
+    user = User.query.filter_by(google_id=user_info['sub']).first()
+    if not user:
+        user = User(google_id=user_info['sub'], 
+                    name=user_info['name'], 
+                    email=user_info['email'])
+        db.session.add(user)
+        db.session.commit()
+    
+    login_user(user)
+    session['user'] = {'id': user.id, 'name': user.name}
+    
+    return redirect(url_for('dashboard.view_dashboard'))
+Propósito: Processar a resposta do Google e autenticar o usuário.
+
+Fluxo Detalhado:
+
+Etapa	Descrição
+1	Cria cliente OAuth (create_client('google'))
+2	Obtém token de acesso (authorize_access_token())
+3	Extrai informações do usuário (parse_id_token)
+4	Busca usuário no banco por google_id (sub)
+5	Cria novo usuário se não existir
+6	Autentica com Flask-Login (login_user())
+7	Armazena dados na sessão (session['user'])
+8	Redireciona para o dashboard
+Dados do Google (user_info):
+
+Campo	Descrição
+sub	Identificador único do usuário (google_id)
+name	Nome completo
+email	E-mail do usuário
+3.3 Rota: /logout (GET)
+python
+@auth_bp.route('/logout')
+def logout():
+    logout_user()
+    session.pop('user', None)
+    session.clear()
+    return redirect(url_for('dashboard.view_dashboard'))
+Propósito: Encerrar a sessão do usuário.
+
+Ações:
+
+Comando	Propósito
+logout_user()	Remove autenticação do Flask-Login
+session.pop('user', None)	Remove dados do usuário da sessão Flask
+session.clear()	Limpa toda a sessão
+redirect(...)	Volta para o dashboard público
+3.4 Rota: /anonymous-login (GET)
+python
+@auth_bp.route('/anonymous-login')
+def anonymous_login():
+    anon_token = request.cookies.get('anon_token')
+    user = User.query.filter_by(google_id=anon_token).first()
+    
+    if not user:
+        anon_token = str(uuid.uuid4())
+        user = User(google_id=anon_token, 
+                    email=f"anon_{anon_token[:8]}@eufit.local", 
+                    name="Anonymous User")
+        db.session.add(user)
+        db.session.commit()
+    
+    login_user(user)
+    
+    response = make_response(redirect(url_for('dashboard.view_dashboard')))
+    response.set_cookie('anon_token', anon_token, max_age=60*60*24*365)
+    return response
+Propósito: Criar ou recuperar identidade anônima persistente via cookie.
+
+Fluxo Detalhado:
+
+Etapa	Descrição
+1	Verifica cookie anon_token
+2	Se existir, busca usuário no banco
+3	Se não existir ou inválido, gera UUID
+4	Cria novo usuário com google_id = UUID
+5	Autentica com Flask-Login
+6	Define cookie com max_age=1 ano
+7	Redireciona para dashboard
+Estrutura do Usuário Anônimo:
+
+Campo	Valor
+google_id	UUID (ex: a1b2c3d4-...)
+name	"Anonymous User"
+email	anon_{uuid[:8]}@eufit.local
+4. Configuração OAuth
+4.1 Inicialização em app/__init__.py
+python
+from app.modules.core.oauth import init_oauth
+
+def create_app():
+    app = Flask(__name__)
+    # ...
+    oauth = init_oauth(app)
+    app.register_blueprint(auth_bp, url_prefix='/auth')
+    # ...
+4.2 Configuração em oauth.py
+python
+def init_oauth(app):
+    oauth = OAuth()
+    oauth.init_app(app)
+    
+    google = oauth.register(
+        name='google',
+        client_id=app.config['GOOGLE_CLIENT_ID'],
+        client_secret=app.config['GOOGLE_CLIENT_SECRET'],
+        access_token_url='https://accounts.google.com/o/oauth2/token',
+        authorize_url='https://accounts.google.com/o/oauth2/auth',
+        jwks_uri='https://www.googleapis.com/oauth2/v3/certs',
+        client_kwargs={'scope': 'openid email profile'}
+    )
+    return oauth
+5. Segurança e Tratamento de Erros
+Aspecto	Implementação
+Proteção CSRF	Authlib gerencia automaticamente via parâmetro state
+MismatchingStateError	Tratado no handlers.py (exceção capturada)
+Sessão	Flask session com SECRET_KEY definida no .env
+Cookie	max_age=1 ano para token anônimo
+HTTPS	_external=True para URLs absolutas
+6. Mapeamento de Rotas
+Rota	Prefixo Final	Método	Propósito
+/login	/auth/login	GET	Iniciar login Google
+/callback	/auth/callback	GET	Callback OAuth
+/logout	/auth/logout	GET	Encerrar sessão
+/anonymous-login	/auth/anonymous-login	GET	Login anônimo
+7. Dependências
+python
+from flask import Blueprint, request, redirect, url_for, session, make_response
+from flask_login import login_user, logout_user, current_user
+from app.modules.core.oauth import oauth
+from app.modules.core.database import db
+from app.database.models import User
+import uuid
+8. Exemplo de Uso
+8.1 Login com Google
+Usuário acessa https://eufit.duckdns.org/auth/login
+
+Redirecionado para Google
+
+Autoriza o acesso
+
+Retorna para /auth/callback
+
+Autenticado, redirecionado para dashboard
+
+8.2 Login Anônimo
+Usuário clica em "Entrar sem login"
+
+Requisição para /auth/anonymous-login
+
+Cookie anon_token é criado
+
+Usuário é autenticado como anônimo
+
+Redirecionado para dashboard
+
+8.3 Logout
+Usuário clica em "Sair"
+
+Requisição para /auth/logout
+
+Sessão é destruída
+
+Redirecionado para dashboard (público)
+
+9. Resumo Técnico
+Aspecto	Detalhe
+Protocolo	OAuth 2.0 com Google
+Biblioteca	Authlib
+Gerenciamento de Sessão	Flask-Login + Session
+Identidade	google_id (sub) para Google, UUID para anônimo
+Persistência	Banco de dados PostgreSQL (tabela users)
+Callback URL	https://eufit.duckdns.org/auth/callback
+Status	✅ Funcional e operacional
+10. Logs de Erro Comuns
+Erro	Causa	Solução
+MismatchingStateError	Token CSRF inválido	Verificar SECRET_KEY fixa
+redirect_uri_mismatch	Callback URL incorreta	Verificar Google Cloud Console
+No module named 'authlib'	Dependência ausente	uv pip install authlib
+User.query.get(3)	Usuário demo não existe	Criar usuário ID 3
