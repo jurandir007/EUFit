@@ -15,3 +15,4 @@ build/
 __pycache__/
 *.pyc
 *.pyo
+api_keys_scan_*.txt
