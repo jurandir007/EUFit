@@ -12,7 +12,7 @@ echo "========================================"
 
 # Configurações
 PROJECT_DIR="/home/jurandir/PycharmProjects/EUFit"
-GITKEY_PATH="/home/jurandir/PycharmProjects/EUFit/gitkey"
+GITKEY_PATH="/opt/Keys/Git/gitkey"
 BRANCH="main"
 REMOTE="origin"
 
